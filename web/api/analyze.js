@@ -2,8 +2,8 @@
 // Vercel 함수. 환경 변수: ANTHROPIC_API_KEY (필수), ACCESS_CODE (선택: 있으면 같은 코드를 넣은 사람만 쓸 수 있다)
 const dns = require('node:dns').promises;
 const net = require('node:net');
+const { callClaudeTool } = require('./_anthropic');
 
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
 const CATEGORIES = ['경력 연차', '자격증', '보유지식'];
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // Vercel 함수 요청 한도(4.5MB) 안에 base64로 들어가는 크기
 const MAX_TEXT = 40000;
@@ -157,28 +157,12 @@ async function askClaude(source) {
   } else {
     content.push({ type: 'text', text: `<jd>\n${source.text.slice(0, MAX_TEXT)}\n</jd>\n\n위 <jd>가 채용공고다. 서류 요건을 정리해 submit_requirements 도구로 제출하라.` });
   }
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    signal: AbortSignal.timeout(55000),
-    headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 4000, system: SYSTEM,
-      tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name },
-      messages: [{ role: 'user', content }],
-    }),
-  }).catch(() => { throw httpErr(504, 'AI 응답이 늦어 중단했습니다. 다시 시도해 주세요.'); });
-  if (!r.ok) {
-    if (r.status === 401 || r.status === 403) throw httpErr(500, '서버의 AI 키 설정이 올바르지 않습니다. 관리자에게 알려 주세요.');
-    if (r.status === 429) throw httpErr(429, 'AI 사용량이 몰렸습니다. 잠시 뒤 다시 시도해 주세요.');
-    let why = '';
-    try { const j = await r.json(); why = String((j.error && j.error.message) || '').slice(0, 200); } catch {}
-    console.error('Anthropic API error', r.status, why);
-    throw httpErr(502, `AI 호출에 실패했습니다 (${r.status})${why ? ': ' + why : ''}`);
+  try {
+    return await callClaudeTool({ system: SYSTEM, tool: TOOL, content, maxTokens: 4000 });
+  } catch (e) {
+    console.error('analyze.js Anthropic error', e.status, e.message);
+    throw e;
   }
-  const data = await r.json();
-  const block = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
-  if (!block) throw httpErr(502, 'AI가 요건을 정리하지 못했습니다. 다시 시도해 주세요.');
-  return block.input;
 }
 
 // 모델이 형식을 벗어나도 화면이 깨지지 않게 정리
