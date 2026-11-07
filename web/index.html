@@ -212,10 +212,8 @@
     <p class="muted">이 화면은 메일을 보내지 않습니다. 「메일 앱으로 열기」를 누르면 받는 사람(지원자)과 제목 · 본문이 채워진 새 메일 창이 열리고, 보내기는 담당자가 메일 앱에서 직접 누릅니다.</p>
     <div class="mailgrid">
       <label for="mTo">받는 사람</label><input type="text" id="mTo" readonly>
-      <label for="mTel">전화번호</label><input type="text" id="mTel" readonly>
-      <label for="mHon">지원자 호칭</label><input type="text" id="mHon" maxlength="40" placeholder="예: 홍길동">
+      <label for="mHon">지원자 이름</label><input type="text" id="mHon" maxlength="40" placeholder="예: 홍길동 (결과표에 「이름」 칸이 있으면 자동으로 채워집니다)">
       <label for="mCo">회사명</label><input type="text" id="mCo" maxlength="40">
-      <label for="mStaff">담당자 이름</label><input type="text" id="mStaff" maxlength="40">
       <label for="mStaffTel">담당자 연락처</label><input type="text" id="mStaffTel" maxlength="60">
       <label for="mSubj">제목</label><input type="text" id="mSubj" maxlength="150">
     </div>
@@ -475,7 +473,7 @@
   const EMAIL_COLS = ['이메일', '메일 주소', '메일주소'];
   const PHONE_COLS = ['전화번호', '휴대전화', '연락처'];
   const mailed = {}; // 메일 초안을 연 지원자 키 -> true
-  const mailInfo = { company: '', staff: '', staffTel: '' }; // 담당자가 한 번 적으면 다음 지원자에게도 채운다
+  const mailInfo = { company: '', staffTel: '' }; // 담당자가 한 번 적으면 다음 지원자에게도 채운다
   const PH = '[입력 필요]';
   const validEmail = (e) => /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(e || '');
   const contactOf = (r) => ({ email: r.email || '', phone: r.phone || '' }); // 결과표의 「이메일」 「전화번호」 칸 (지원서에서 읽은 값)
@@ -523,7 +521,7 @@
         count: m ? +m[1] : null, total: m ? +m[2] : null, countText: cnt,
         met: get(r, '기준 충족 여부'), link: get(r, '링크 확인 상태'), fail: get(r, '읽기 실패 여부'),
         pass0: get(r, '서류 합격/불합격'), int0: get(r, '면접 대상'),
-        email: getAny(r, EMAIL_COLS), phone: getAny(r, PHONE_COLS),
+        email: getAny(r, EMAIL_COLS), phone: getAny(r, PHONE_COLS), name: getAny(r, ['이름', '지원자 이름']),
       };
     });
     return { items, rows: out, head };
@@ -661,7 +659,8 @@
     const t = $('tbl'); t.textContent = '';
     const hr = t.createTHead().insertRow();
     const hasContact = model.rows.some(r => { const c = contactOf(r); return c.email || c.phone; });
-    const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID', '직무'], model.items, ['충족 개수', '기준 충족 여부', '링크'], hasContact ? ['이메일', '전화번호'] : [], ['서류 합격/불합격', '면접 대상', '불합격 메일']);
+    const hasName = model.rows.some(r => r.name);
+    const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID'], hasName ? ['이름'] : [], ['직무'], model.items, ['충족 개수', '기준 충족 여부', '링크'], hasContact ? ['이메일', '전화번호'] : [], ['서류 합격/불합격', '면접 대상', '불합격 메일']);
     heads.forEach(h => { const th = document.createElement('th'); th.textContent = h; if (h === '순위') th.className = 'rank'; if (h === '지원자 ID') th.className = 'idc'; hr.appendChild(th); });
     t.style.setProperty('--rk', rankOn ? '48px' : '0px');
     const tb = t.createTBody();
@@ -675,7 +674,7 @@
       const tr = tb.insertRow(); if (r.fail) tr.className = 'fail';
       const add = (txt) => { const td = tr.insertCell(); if (txt !== undefined) td.textContent = txt; return td; };
       if (rankOn) { const td = add(r.fail ? '—' : (ranks.get(r.key) ?? '—')); td.className = 'rank'; }
-      add(r.id).className = 'idc'; add(r.job || '—');
+      add(r.id).className = 'idc'; if (hasName) add(r.name || '—'); add(r.job || '—');
       model.items.forEach((_, i) => {
         const td = tr.insertCell();
         if (r.fail) { td.textContent = '—'; return; }
@@ -726,9 +725,10 @@
   function mailDraft(r) {
     const v = (id) => $(id).value.trim() || PH;
     const job = r.job || PH, co = v('mCo');
-    const subject = `${co === PH ? co : '[' + co + ']'} ${job} 지원 결과 안내`;
+    const subject = `${co === PH ? co : '[' + co + ']'} 서류 결과 안내드립니다.`;
+    const staff = `${co} 채용담당자`;
     const body = `안녕하세요, ${v('mHon')}님.
-${co} 채용 담당자 ${v('mStaff')}입니다.
+${staff}입니다.
 
 ${job} 직무에 지원해 주셔서 진심으로 감사드립니다.
 
@@ -738,7 +738,7 @@ ${job} 직무에 지원해 주셔서 진심으로 감사드립니다.
 앞으로도 ${co}에 관심을 가져 주시면 감사하겠습니다.
 문의 사항은 아래 연락처로 알려 주세요.
 
-담당자: ${v('mStaff')}
+담당자: ${staff}
 연락처: ${v('mStaffTel')}
 
 ${co} 드림`;
@@ -756,8 +756,8 @@ ${co} 드림`;
   function openMail(r) {
     const ct = contactOf(r);
     mailRow = r; mailDirty = false;
-    $('mTo').value = ct.email; $('mTel').value = ct.phone || '(없음)';
-    $('mHon').value = ''; $('mCo').value = mailInfo.company; $('mStaff').value = mailInfo.staff; $('mStaffTel').value = mailInfo.staffTel;
+    $('mTo').value = ct.email;
+    $('mHon').value = r.name || ''; $('mCo').value = mailInfo.company; $('mStaffTel').value = mailInfo.staffTel;
     $('mMsg').classList.add('hidden');
     regenMail();
     $('mailBg').classList.remove('hidden'); $('mHon').focus();
@@ -780,7 +780,7 @@ ${co} 드림`;
     const a = document.createElement('a'); a.href = url; document.body.appendChild(a); a.click(); a.remove();
     mailed[mailRow.key] = true; mMsg(note); render();
   }
-  [['mCo', 'company'], ['mStaff', 'staff'], ['mStaffTel', 'staffTel']].forEach(([id, k]) => { $(id).oninput = () => { mailInfo[k] = $(id).value.trim(); regenMail(); }; });
+  [['mCo', 'company'], ['mStaffTel', 'staffTel']].forEach(([id, k]) => { $(id).oninput = () => { mailInfo[k] = $(id).value.trim(); regenMail(); }; });
   $('mHon').oninput = regenMail;
   $('mSubj').oninput = () => { mailDirty = true; refreshMailWarn(); };
   $('mBody').oninput = () => { mailDirty = true; refreshMailWarn(); };
