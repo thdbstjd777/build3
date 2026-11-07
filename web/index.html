@@ -214,9 +214,31 @@
   <section id="paneUp" role="tabpanel" aria-labelledby="tabUp">
     <div class="card">
       <h2>① 서류 업로드</h2>
-      <p class="muted">지원서(PDF · Word)는 클로드의 /서류-정리 가 읽어 결과표.csv 로 정리합니다. 그 결과표.csv 를 여기에 올리세요. 올린 파일은 이 브라우저 안에서만 읽습니다.</p>
+      <p class="muted">지원서(PDF)와 직무를 고르면 AI가 그 자리에서 결과표.csv 를 만듭니다. Word · HWP · 스캔 이미지는 클로드의 /서류-정리 로 결과표.csv 를 만든 뒤 아래에서 올리세요. 올린 파일은 이 브라우저 안에서만 읽습니다.</p>
+
+      <div class="card" style="margin:0 0 12px">
+        <h2 style="margin-top:0">AI로 지원서 바로 정리하기</h2>
+        <p class="muted" id="screenEmpty">먼저 「②직무 · 서류 합격 기준」에서 직무를 등록하고 「확정」하세요.</p>
+        <div id="screenBody" class="hidden">
+          <div class="row">
+            <label>직무 <select id="screenJob"></select></label>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <label class="btn">지원서 PDF 고르기 (여러 개 가능)<input type="file" id="screenFiles" accept=".pdf,application/pdf" multiple></label>
+            <span class="muted" id="screenFileCount"></span>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <input type="text" id="screenCode" class="hidden" maxlength="40" placeholder="접속 코드">
+            <button type="button" id="screenRun">AI로 결과표 만들기</button>
+            <span class="muted" id="screenMsg"></span>
+          </div>
+          <p class="muted" id="screenHint"></p>
+          <ul class="warns hidden" id="screenWarns"></ul>
+        </div>
+      </div>
+
       <div class="drop" id="drop">
-        <p>결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
+        <p>또는 결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
         <div class="row" style="justify-content:center">
           <label class="btn">파일 고르기<input type="file" id="file" accept=".csv,text/csv"></label>
           <button type="button" id="sample">가상 예시 불러오기</button>
@@ -790,6 +812,7 @@
     if (name === 'view') { renderJobFilter(); $('viewEmpty').classList.toggle('hidden', !!model); }
     if (name === 'pass') renderPass();
     if (name === 'iv') { if (iv) renderIv(); checkIvReady(); }
+    if (name === 'up') { renderScreenJobs(); checkScreenReady(); }
   }
   $('tabJobs').onclick = () => showTab('jobs');
   $('tabView').onclick = () => showTab('view');
@@ -1058,6 +1081,80 @@
       model = null; $('result').classList.add('hidden'); $('upOk').classList.add('hidden'); showError(e.message);
     }
   }
+
+  // ===== AI로 지원서 바로 정리하기 (기능 1, 웹) =====
+  let screenReady = null; // null=확인 전
+  let screenBusy = false;
+  function screenMsg(m, bad) { const e = $('screenMsg'); if (!e) return; e.textContent = m || ''; e.style.color = bad ? 'var(--no-fg)' : ''; }
+
+  async function checkScreenReady() {
+    if (screenReady !== null) return;
+    try {
+      const r = await fetch('/api/screen-resumes'); const s = await r.json();
+      screenReady = !!s.ready;
+      if (s.needCode) $('screenCode').classList.remove('hidden');
+      $('screenHint').textContent = screenReady ? '' : '이 배포에는 AI 키가 아직 등록되지 않아 자동 정리를 쓸 수 없습니다. 클로드의 /서류-정리 로 결과표.csv 를 만들어 아래에서 올리세요.';
+    } catch {
+      screenReady = false;
+      $('screenHint').textContent = '자동 정리 서버에 연결할 수 없습니다 (배포된 주소에서만 동작합니다). 클로드의 /서류-정리 로 결과표.csv 를 만들어 아래에서 올리세요.';
+    }
+  }
+
+  function renderScreenJobs() {
+    const confirmed = jobs.filter((j) => j.status === '확정');
+    $('screenEmpty').classList.toggle('hidden', confirmed.length > 0);
+    $('screenBody').classList.toggle('hidden', confirmed.length === 0);
+    if (!confirmed.length) return;
+    const sel = $('screenJob'); const keep = sel.value;
+    sel.textContent = '';
+    confirmed.forEach((j) => { const o = document.createElement('option'); o.value = j.id; o.textContent = j.name; sel.appendChild(o); });
+    if (confirmed.some((j) => j.id === keep)) sel.value = keep;
+  }
+
+  function fileToB64(file) {
+    return new Promise((ok, no) => {
+      const rd = new FileReader();
+      rd.onload = () => ok(String(rd.result).split(',')[1] || '');
+      rd.onerror = () => no(new Error(file.name + ': 파일을 읽지 못했습니다.'));
+      rd.readAsDataURL(file);
+    });
+  }
+
+  $('screenFiles') && ($('screenFiles').onchange = (e) => {
+    const n = e.target.files.length;
+    $('screenFileCount').textContent = n ? `${n}개 선택됨` : '';
+  });
+
+  async function runScreen() {
+    if (screenBusy) return;
+    const job = jobs.find((j) => j.id === $('screenJob').value && j.status === '확정');
+    if (!job) return screenMsg('직무를 먼저 등록하고 확정하세요.', true);
+    const files = [...($('screenFiles').files || [])];
+    if (!files.length) return screenMsg('지원서 PDF를 먼저 골라 주세요.', true);
+    if (files.some((f) => f.type && f.type !== 'application/pdf')) return screenMsg('PDF 파일만 올릴 수 있습니다.', true);
+    screenBusy = true; const btn = $('screenRun'); btn.disabled = true; screenMsg(`AI가 지원서 ${files.length}건을 읽는 중입니다… (최대 1분)`);
+    const warns = $('screenWarns'); warns.textContent = ''; warns.classList.add('hidden');
+    try {
+      const resumes = await Promise.all(files.map(async (f) => ({ fileName: f.name, mediaType: f.type || 'application/pdf', data: await fileToB64(f) })));
+      const headers = { 'content-type': 'application/json' };
+      try { const c = $('screenCode').value || sessionStorage.getItem('jdCode'); if (c) headers['x-access-code'] = c; } catch {}
+      const payload = { job: { name: job.name, count: job.count, items: job.items.map((it) => ({ name: it.name, cond: it.cond, note: it.note })) }, resumes };
+      const r = await fetch('/api/screen-resumes', { method: 'POST', headers, body: JSON.stringify(payload) });
+      let data = null; try { data = await r.json(); } catch {}
+      if (!data) throw new Error(r.status === 404 ? '자동 정리 기능이 이 주소에 배포되어 있지 않습니다.' : '서버에서 올바른 응답을 받지 못했습니다. 다시 시도해 주세요.');
+      if (!r.ok) { if (data.needCode) $('screenCode').classList.remove('hidden'); throw new Error(data.error || '만들지 못했습니다.'); }
+      try { if ($('screenCode').value) sessionStorage.setItem('jdCode', $('screenCode').value); } catch {}
+      if (!data.csv) throw new Error('AI가 결과표를 만들지 못했습니다. 다시 시도해 주세요.');
+      loadCsvText(data.csv);
+      screenMsg(`만들었습니다: 지원자 ${data.total}명 (읽기 실패 ${data.readFail}명). 아래 「②직무·서류 합격 기준」또는 「③결과표 보기」에서 확인하세요.`);
+      if (Array.isArray(data.warnings) && data.warnings.length) {
+        data.warnings.forEach((w) => { const li = document.createElement('li'); li.textContent = w; warns.appendChild(li); });
+        warns.classList.remove('hidden');
+      }
+    } catch (e) { screenMsg(e.message, true); }
+    finally { screenBusy = false; btn.disabled = false; }
+  }
+  $('screenRun') && ($('screenRun').onclick = runScreen);
 
   // ===== 불합격 메일 초안 (보내지 않고 메일 앱을 연다) =====
   let mailRow = null, mailDirty = false;
@@ -1479,6 +1576,9 @@ ${co} 드림`;
   ['dragenter', 'dragover'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.remove('over'); }));
   ivDrop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => loadIv(String(rd.result)); rd.readAsText(f, 'utf-8'); });
+
+  // 시작 화면이 ①서류 업로드이므로 바로 한 번 그려 둔다
+  renderScreenJobs(); checkScreenReady();
 </script>
 </body>
 </html>
