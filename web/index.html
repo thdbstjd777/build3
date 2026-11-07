@@ -212,9 +212,28 @@
 
   <!-- ===== 결과표 보기 ===== -->
   <section id="paneUp" class="hidden" role="tabpanel" aria-labelledby="tabUp">
+    <div class="card" id="judgeCard">
+      <h2>② 서류 업로드 — 지원서로 바로 판정하기</h2>
+      <p class="muted">「직무 · 서류 합격 기준」 탭에서 <b>확정</b>한 기준으로 지원서(PDF · Word · txt)를 읽어 아래 결과표를 바로 만듭니다. 기준 파일을 내려받거나 클로드 앱을 거칠 필요가 없습니다. 확정된 「충족 기준 개수」 이상 충족하면 <b>합격</b>, 못 미치면 <b>불합격</b>으로 표에 자동으로 채워지며, 읽지 못한 지원서는 비워 둡니다. 판정은 AI가 읽고 내린 결과이니 근거를 확인하고, 다르게 보면 표에서 합격/불합격을 고칠 수 있습니다. <b>가상 지원서만</b> 쓰세요. 판정을 시작하면 지원서 내용이 서버와 AI(Claude)로 전송됩니다.</p>
+      <div class="row">
+        <label>직무 <select id="jgJob" aria-label="판정할 직무"></select></label>
+        <label class="btn plain" style="border-color:var(--line);color:var(--fg)">지원서 고르기<input type="file" id="jgFiles" multiple accept=".pdf,.docx,.txt,.md"></label>
+        <span class="muted" id="jgFileInfo">PDF(3MB 이하) · docx · txt, 최대 60명</span>
+      </div>
+      <p class="muted" id="jgJobHint"></p>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="jgCode" class="hidden" placeholder="접속 코드" style="width:160px" autocomplete="off">
+        <button type="button" id="jgRun" disabled>판정 시작</button>
+        <button type="button" class="plain hidden" id="jgDl">만든 결과표.csv 내려받기</button>
+        <span class="muted" id="jgMsg" role="status"></span>
+      </div>
+      <div class="wrap hidden" id="jgProgWrap"><table class="small" id="jgProg"></table></div>
+      <div class="banner hidden" id="jgNotes"></div>
+    </div>
+
     <div class="card">
-      <h2>② 서류 업로드</h2>
-      <p class="muted">지원서(PDF · Word)는 클로드의 /서류-정리 가 읽어 결과표.csv 로 정리합니다. 그 결과표.csv 를 여기에 올리세요. 올린 파일은 이 브라우저 안에서만 읽습니다. 올리면 ①에 등록한 서류 합격 기준에 따라 바로 합격 / 불합격이 표시됩니다.</p>
+      <h2>또는 결과표 CSV 올리기</h2>
+      <p class="muted">이미 만든 결과표.csv(클로드 /서류-정리 결과)가 있으면 여기에 올리세요. 올린 파일은 이 브라우저 안에서만 읽습니다. 올리면 ①에 등록한 서류 합격 기준에 따라 바로 합격 / 불합격이 표시됩니다.</p>
       <div class="drop" id="drop">
         <p>결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
         <div class="row" style="justify-content:center">
@@ -245,7 +264,7 @@
       </div>
       <div id="reqBox" class="reqbox hidden"></div>
       <div class="stats" id="stats"></div>
-      <div class="banner" id="rankNote">참고용 순위 · 최종 결정은 담당자. 순위는 기준 충족 개수 순이며, 같은 개수는 같은 순위입니다. 직무가 다르면 기준 항목이 달라 직무별로 따로 순위를 매깁니다. 합격/불합격은 아래 칸에서 사람이 직접 고릅니다.</div>
+      <div class="banner" id="rankNote">참고용 순위 · 최종 결정은 담당자. 순위는 기준 충족 개수 순이며, 같은 개수는 같은 순위입니다. 직무가 다르면 기준 항목이 달라 직무별로 따로 순위를 매깁니다. 합격/불합격은 충족 기준 개수로 자동 입력되며, 아래 칸에서 담당자가 고칠 수 있습니다. (CSV로 올린 결과표는 그 파일의 값 그대로입니다)</div>
       <div class="row" style="margin-top:12px">
         <button type="button" id="exportCsv">고른 값 포함해 결과표 내려받기 (.csv)</button>
         <span class="muted">합격/불합격에서 고른 값이 「서류 합격/불합격」 칸에 채워진 결과표.csv 가 내려받아집니다. 새로고침하면 고른 값이 사라지니 먼저 내려받으세요.</span>
@@ -258,7 +277,7 @@
   <section id="panePass" class="hidden" role="tabpanel" aria-labelledby="tabPass">
     <div class="card" style="margin-top:12px">
       <h2>서류 합격자 리스트 · 팀장 메일 초안</h2>
-      <p class="muted">「결과표 보기」에서 사람이 「합격」으로 고른 지원자만 모읍니다. 이 화면은 합격/불합격을 정하지 않고 메일도 보내지 않습니다. 메일 앱이 열리면 담당자가 확인한 뒤 직접 보냅니다.</p>
+      <p class="muted">「결과표 보기」에서 「합격」으로 된 지원자(자동 판정 뒤 담당자가 고친 값 포함)만 모읍니다. 이 화면은 메일을 보내지 않습니다. 메일 앱이 열리면 담당자가 확인한 뒤 직접 보냅니다.</p>
       <p class="muted" id="passEmpty">먼저 「결과표 보기」에서 결과표를 불러오고 서류 합격/불합격을 고르세요.</p>
       <div id="passBody" class="hidden">
         <label>직무 <select id="passJob"></select></label>
@@ -374,6 +393,7 @@
   </div>
 </div>
 
+<script src="docx-text.js"></script>
 <script>
   const $ = (id) => document.getElementById(id);
   const BAD_WORDS = ['성별', '나이', '연령', '출신', '결혼', '혼인', '가족', '외모', '종교', '국적', '장애', '생년', '고향'];
@@ -895,6 +915,7 @@
   }
 
   function renderJobFilter() {
+    jgRefreshJobs();
     const sel = $('jobFilter'); if (!sel) return;
     const names = new Set();
     if (model) model.rows.forEach(r => { if (r.job) names.add(r.job); });
@@ -1194,6 +1215,169 @@ ${co} 드림`;
   ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => readFile(e.dataTransfer.files[0]));
+
+  // ===== 지원서로 바로 판정하기 (확정된 기준 → 지원서 → 결과표) =====
+  let jgFiles = [], jgBusy = false, jgCsv = '';
+  const JG_MAX_FILES = 60, JG_MAX_PDF = 3 * 1024 * 1024;
+  const jgMsg = (t, bad) => { const m = $('jgMsg'); m.textContent = t || ''; m.style.color = bad ? 'var(--no-fg)' : ''; };
+  const jgJobObj = () => jobs.find(j => j.id === $('jgJob').value) || null;
+
+  function jgRefreshJobs() {
+    const sel = $('jgJob'); if (!sel || jgBusy) return;
+    const keep = sel.value, ok = jobs.filter(j => j.status === '확정');
+    sel.textContent = '';
+    ok.forEach(j => { const o = document.createElement('option'); o.value = j.id; o.textContent = j.name; sel.appendChild(o); });
+    if (ok.some(j => j.id === keep)) sel.value = keep;
+    $('jgJobHint').textContent = ok.length ? '' : (jobs.length
+      ? '확정된 직무가 없습니다. 「직무 · 서류 합격 기준」 탭에서 기준을 확정하면 여기서 고를 수 있습니다. (기준이 「초안」이면 판정을 시작하지 않습니다)'
+      : '등록된 직무가 없습니다. 「직무 · 서류 합격 기준」 탭에서 직무와 기준을 만들고 확정하세요.');
+    jgSync();
+  }
+  function jgSync() { $('jgRun').disabled = jgBusy || !jgJobObj() || !jgFiles.length; }
+
+  $('jgFiles').onchange = (e) => {
+    jgFiles = [...e.target.files].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    e.target.value = '';
+    if (jgFiles.length > JG_MAX_FILES) { jgFiles = jgFiles.slice(0, JG_MAX_FILES); jgMsg(`지원서는 ${JG_MAX_FILES}명까지만 받습니다. 앞의 ${JG_MAX_FILES}개만 골랐습니다.`, true); } else jgMsg('');
+    $('jgFileInfo').textContent = jgFiles.length ? `지원서 ${jgFiles.length}개 선택됨` : 'PDF(3MB 이하) · docx · txt, 최대 60명';
+    jgSync();
+  };
+  $('jgJob').onchange = jgSync;
+  try { const c = sessionStorage.getItem('jdCode'); if (c) $('jgCode').value = c; } catch {}
+
+  // 지원서 한 명 → 서버에 보낼 내용. 읽을 수 없으면 { fail: 사유 }
+  async function jgPrepare(f) {
+    const ext = (f.name.split('.').pop() || '').toLowerCase();
+    try {
+      if (ext === 'pdf') {
+        if (f.size > JG_MAX_PDF) return { fail: 'PDF가 3MB를 넘음' };
+        return { applicant: { kind: 'pdf', data: await fileToB64(f) } };
+      }
+      if (ext === 'docx') {
+        const text = await window.docxToText(await f.arrayBuffer());
+        return text.length < 30 ? { fail: '글자가 거의 없음' } : { applicant: { kind: 'text', text } };
+      }
+      if (ext === 'txt' || ext === 'md') {
+        const text = (await f.text()).trim();
+        return text.length < 30 ? { fail: '글자가 거의 없음' } : { applicant: { kind: 'text', text } };
+      }
+      if (ext === 'hwp' || ext === 'hwpx') return { fail: '한글(HWP)은 읽지 못함' };
+      if (ext === 'doc') return { fail: '옛 Word(.doc)는 읽지 못함 — docx로 저장해 주세요' };
+      return { fail: `지원하지 않는 형식(.${ext || '없음'})` };
+    } catch (e) { return { fail: e.message || '파일을 읽지 못함' }; }
+  }
+
+  async function jgAsk(job, applicant, headers) {
+    const body = JSON.stringify({
+      confirmed: true, today: new Date().toLocaleDateString('sv-SE'),
+      job: { name: job.name, items: job.items.map(i => ({ name: i.name, cond: i.cond, note: i.note })) }, applicant,
+    });
+    for (let tryNo = 0; ; tryNo++) {
+      const r = await fetch('/api/judge', { method: 'POST', headers, body });
+      let data = null; try { data = await r.json(); } catch {}
+      if (r.ok && data) return data;
+      const err = new Error((data && data.error) || (r.status === 404 ? '판정 기능이 이 주소에 배포되어 있지 않습니다.' : '판정 서버에서 올바른 응답을 받지 못했습니다.'));
+      err.needCode = !!(data && data.needCode); err.status = r.status;
+      if (tryNo < 1 && [429, 502, 504].includes(r.status)) { await new Promise(ok => setTimeout(ok, 2500)); continue; }
+      throw err;
+    }
+  }
+
+  async function jgRun() {
+    const job = jgJobObj();
+    if (!job || job.status !== '확정') return jgMsg('확정된 직무를 고르세요.', true);
+    if (!jgFiles.length) return jgMsg('지원서를 고르세요.', true);
+    if (!confirm(`「${job.name}」 기준으로 지원서 ${jgFiles.length}개를 판정합니다.\n지원서 내용이 서버와 AI(Claude)로 전송됩니다. 가상 지원서가 맞나요?`)) return;
+    jgBusy = true; jgSync(); $('jgJob').disabled = true; $('jgDl').classList.add('hidden'); $('jgNotes').classList.add('hidden');
+    const headers = { 'content-type': 'application/json' };
+    try { const c = $('jgCode').value || sessionStorage.getItem('jdCode'); if (c) headers['x-access-code'] = c; } catch {}
+
+    const rows = jgFiles.map((f, i) => ({ id: 'A-' + String(i + 1).padStart(3, '0'), file: f, state: '대기', res: null, fail: '' }));
+    const tbl = $('jgProg'); tbl.textContent = '';
+    const hr = tbl.createTHead().insertRow(); ['지원자 ID', '파일', '상태'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
+    const tb = tbl.createTBody(); const stCell = {};
+    rows.forEach(r => { const tr = tb.insertRow(); tr.insertCell().textContent = r.id; tr.insertCell().textContent = r.file.name; stCell[r.id] = tr.insertCell(); stCell[r.id].textContent = '대기'; });
+    $('jgProgWrap').classList.remove('hidden');
+    const setState = (r, t) => { r.state = t; stCell[r.id].textContent = t; };
+    let done = 0, stop = null;
+    const tick = () => jgMsg(`판정 중… ${done}/${rows.length}`);
+    tick();
+
+    let next = 0;
+    async function worker() {
+      while (!stop) {
+        const r = rows[next++]; if (!r) return;
+        setState(r, '읽는 중');
+        const p = await jgPrepare(r.file);
+        if (p.fail) { r.fail = p.fail; setState(r, '읽기 실패 (' + p.fail + ')'); done++; tick(); continue; }
+        try {
+          setState(r, 'AI 판정 중');
+          const res = await jgAsk(job, p.applicant, headers);
+          if (!res.readable) { r.fail = res.reason; setState(r, '읽기 실패 (' + res.reason + ')'); }
+          else { r.res = res; setState(r, '완료'); }
+        } catch (e) {
+          if (e.needCode || e.status === 401 || e.status === 503 || e.status === 500) { stop = e; setState(r, '중단'); return; }
+          r.fail = e.message; setState(r, '읽기 실패 (' + e.message + ')');
+        }
+        done++; tick();
+      }
+    }
+    await Promise.all([worker(), worker(), worker()]);
+
+    jgBusy = false; $('jgJob').disabled = false; jgSync();
+    if (stop) {
+      if (stop.needCode) $('jgCode').classList.remove('hidden');
+      rows.forEach(r => { if (r.state === '대기') setState(r, '중단'); });
+      return jgMsg(stop.message + ' (여기까지의 결과는 표에 넣지 않았습니다)', true);
+    }
+    try { if ($('jgCode').value) sessionStorage.setItem('jdCode', $('jgCode').value); } catch {}
+    jgFinish(job, rows);
+  }
+
+  function jgFinish(job, rows) {
+    const names = job.items.map(i => i.name), need = Number(job.count), total = names.length;
+    const head = ['지원자 ID', '직무'];
+    names.forEach(n => { head.push(n + ' 판정', n + ' 근거'); });
+    head.push('기준 충족 개수', '기준 충족 여부', '링크 확인 상태', '읽기 실패 여부', '서류 합격/불합격', '면접 대상', '이름', '이메일', '전화번호');
+    const lines = [head.map(csvCell).join(',')];
+    const notes = [];
+    let passN = 0, noN = 0;
+    rows.forEach(r => {
+      const row = [r.id, job.name];
+      if (!r.res) {
+        names.forEach(() => row.push('', ''));
+        row.push('', '', '', '읽기 실패 (' + r.fail + ')', '', '', '', '', '');
+      } else {
+        const res = r.res; let cnt = 0;
+        res.items.forEach(it => { row.push(it.verdict, it.evidence); if (it.verdict === '충족') cnt++; });
+        // 개수 세기와 충족 여부는 AI가 아니라 이 화면이 한다. 서류 합격/불합격도 확정된 기준(충족 기준 개수)으로 이 화면이 채운다.
+        const verdict = need >= 1 ? (cnt >= need ? '합격' : '불합격') : '';
+        if (verdict === '합격') passN++; else if (verdict === '불합격') noN++;
+        if (verdict === '불합격' && res.linkUnchecked) notes.push(`${r.id} — 링크 때문에 확인하지 못한 내용이 있는데 불합격으로 나왔습니다. 원본 지원서를 확인하세요`);
+        row.push(`${cnt}/${total}`, cnt >= need ? '충족' : '미충족', res.linkUnchecked ? '링크 확인 못 함' : '없음', '', verdict, '', res.applicant.name, res.applicant.email, res.applicant.phone);
+        res.notes.forEach(n => notes.push(`${r.id} — ${n}`));
+        if (res.unusedInfo) notes.push(`${r.id} — 평가에 쓰지 않은 정보(성별·나이 등)가 지원서에 있었음`);
+        if (res.instructionFound) notes.push(`${r.id} — 지원서 안에 지시문이 있었음 · 따르지 않음`);
+      }
+      lines.push(row.map(csvCell).join(','));
+    });
+    jgCsv = '﻿' + lines.join('\r\n') + '\r\n';
+    const failed = rows.filter(r => !r.res).length;
+    loadCsvText(jgCsv);
+    jgMsg(`입력 ${rows.length}명 → 합격 ${passN}명 · 불합격 ${noN}명 · 읽기 실패 ${failed}명 (기준 ${need}개 이상 충족이면 합격). 읽기 실패는 비워 두었습니다. 아래 결과표에서 근거를 확인하고, 다르게 보면 합격/불합격 칸을 고치세요.`);
+    $('jgDl').classList.remove('hidden');
+    const nb = $('jgNotes'); nb.textContent = '';
+    if (notes.length) {
+      const b = document.createElement('b'); b.textContent = '해석이 필요했거나 확인할 곳 (근거가 이상한 지원자는 원본 지원서와 대조하세요)'; nb.appendChild(b);
+      const ul = document.createElement('ul'); ul.className = 'jdlist';
+      notes.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+      nb.appendChild(ul); nb.classList.remove('hidden');
+    }
+    $('judgeCard').scrollIntoView({ block: 'start' });
+  }
+
+  $('jgRun').onclick = jgRun;
+  $('jgDl').onclick = () => { if (jgCsv) download('결과표.csv', jgCsv, 'text/csv'); };
 
   // 시작
   loadJobs(); if (jobs[0]) selected = jobs[0].id; saveJobs(); renderJobs();
