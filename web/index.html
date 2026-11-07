@@ -112,15 +112,15 @@
   <div class="banner">가상 데이터만 사용하세요. 올린 결과표는 이 브라우저 안에서만 읽고 저장하지 않으며 새로고침하면 사라집니다. 직무와 기준은 이 브라우저에만 저장됩니다. 「JD로 기준 초안 만들기」를 누를 때만 넣은 JD(글 · 링크 · 파일)가 서버와 AI(Claude)로 전송됩니다. 지원자 정보는 넣지 마세요. 연락처(이메일 · 전화번호)도 가상 값만 쓰세요. 메일은 이 화면이 보내지 않고, 초안만 만들어 메일 앱을 엽니다.</div>
 
   <div class="tabs" role="tablist" aria-label="화면 선택">
-    <button type="button" class="tab on" id="tabUp" role="tab" aria-selected="true" aria-controls="paneUp">① 서류 업로드</button>
-    <button type="button" class="tab" id="tabJobs" role="tab" aria-selected="false" aria-controls="paneJobs">② 직무 · 서류 합격 기준</button>
+    <button type="button" class="tab on" id="tabJobs" role="tab" aria-selected="true" aria-controls="paneJobs">① 직무 · 서류 합격 기준</button>
+    <button type="button" class="tab" id="tabUp" role="tab" aria-selected="false" aria-controls="paneUp">② 서류 업로드</button>
     <button type="button" class="tab" id="tabView" role="tab" aria-selected="false" aria-controls="paneView">③ 결과표 보기</button>
     <button type="button" class="tab" id="tabPass" role="tab" aria-selected="false" aria-controls="panePass">④ 합격자 · 팀장 메일</button>
     <button type="button" class="tab" id="tabIv" role="tab" aria-selected="false" aria-controls="paneIv">⑤ 면접 질문지 · 평가표</button>
   </div>
 
   <!-- ===== 직무 · 기준 ===== -->
-  <section id="paneJobs" class="hidden" role="tabpanel" aria-labelledby="tabJobs">
+  <section id="paneJobs" role="tabpanel" aria-labelledby="tabJobs">
     <div class="grid">
       <div class="card" style="margin-top:0">
         <h2>직무 등록</h2>
@@ -207,14 +207,14 @@
         </div>
       </div>
     </div>
-  <div class="row" style="margin-top:12px"><button type="button" id="jobsNext">다음: 결과표 보기 →</button></div>
+  <div class="row" style="margin-top:12px"><button type="button" id="jobsNext">다음: 서류 업로드 →</button></div>
   </section>
 
   <!-- ===== 결과표 보기 ===== -->
-  <section id="paneUp" role="tabpanel" aria-labelledby="tabUp">
+  <section id="paneUp" class="hidden" role="tabpanel" aria-labelledby="tabUp">
     <div class="card">
-      <h2>① 서류 업로드</h2>
-      <p class="muted">지원서(PDF · Word)는 클로드의 /서류-정리 가 읽어 결과표.csv 로 정리합니다. 그 결과표.csv 를 여기에 올리세요. 올린 파일은 이 브라우저 안에서만 읽습니다.</p>
+      <h2>② 서류 업로드</h2>
+      <p class="muted">지원서(PDF · Word)는 클로드의 /서류-정리 가 읽어 결과표.csv 로 정리합니다. 그 결과표.csv 를 여기에 올리세요. 올린 파일은 이 브라우저 안에서만 읽습니다. 올리면 ①에 등록한 서류 합격 기준에 따라 바로 합격 / 불합격이 표시됩니다.</p>
       <div class="drop" id="drop">
         <p>결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
         <div class="row" style="justify-content:center">
@@ -226,13 +226,15 @@
       <div id="upOk" class="reqbox hidden">
         <b id="upMsg"></b>
         <div class="muted" id="upSub"></div>
-        <div class="row" style="margin-top:8px"><button type="button" id="upNext">다음: 직무 · 서류 합격 기준 →</button></div>
+        <div class="stats" id="upStats" style="margin-top:8px"></div>
+        <div class="wrap" style="margin-top:8px"><table id="upTbl" class="small"></table></div>
+        <div class="row" style="margin-top:8px"><button type="button" id="reapply" class="plain">기준 다시 적용</button> <button type="button" id="upNext">다음: 결과표 보기 →</button></div>
       </div>
     </div>
   </section>
 
   <section id="paneView" class="hidden" role="tabpanel" aria-labelledby="tabView">
-    <p class="card muted" id="viewEmpty">먼저 「① 서류 업로드」에서 결과표를 불러오세요.</p>
+    <p class="card muted" id="viewEmpty">먼저 「② 서류 업로드」에서 결과표를 불러오세요.</p>
     <div id="result" class="hidden">
       <div class="card row" style="margin-top:12px">
         <label>직무
@@ -794,8 +796,8 @@
   $('tabJobs').onclick = () => showTab('jobs');
   $('tabView').onclick = () => showTab('view');
   $('tabUp').onclick = () => showTab('up');
-  $('upNext').onclick = () => showTab('jobs');
-  $('jobsNext').onclick = () => showTab('view');
+  $('upNext').onclick = () => showTab('view');
+  $('jobsNext').onclick = () => showTab('up');
   $('viewNext').onclick = () => showTab('pass');
   $('tabPass').onclick = () => showTab('pass');
   $('tabIv').onclick = () => showTab('iv');
@@ -1041,18 +1043,61 @@
     });
   }
 
+  // 등록한 서류 합격 기준으로 합격/불합격을 바로 정한다. 기준이 없거나 항목 수가 다르면 결과표의 「기준 충족 여부」를 따른다.
+  const autoWhy = {};
+  function autoPass(r) {
+    if (r.fail || r.count === null) return { pass: '', why: '읽기 실패 · 판정 불가' };
+    const job = jobs.find(j => j.name === r.job);
+    const need = job ? Number(job.count) : NaN;
+    if (job && Number.isInteger(need) && need >= 1 && r.total === job.items.length)
+      return { pass: r.count >= need ? '합격' : '불합격', why: `등록 기준 ${need}개 이상 · ${r.countText}` };
+    if (r.met === '충족' || r.met === '미충족')
+      return { pass: r.met === '충족' ? '합격' : '불합격', why: `결과표 기준 충족 여부(${r.met}) · ${r.countText}` + (job ? ' · 등록 기준과 항목 수가 달라 결과표 값 사용' : ' · 등록된 기준 없음') };
+    return { pass: '', why: '기준 충족 여부 없음' };
+  }
+  function applyAuto() {
+    model.rows.forEach(r => {
+      const a = autoPass(r); autoWhy[r.key] = a.why;
+      (choices[r.key] || (choices[r.key] = {})).pass = a.pass;
+    });
+    renderUpList();
+  }
+  function renderUpList() {
+    const rows = model.rows, st = $('upStats'); st.textContent = '';
+    const cnt = (v) => rows.filter(r => (choices[r.key] || {}).pass === v).length;
+    [['합격', cnt('합격')], ['불합격', cnt('불합격')], ['판정 불가', rows.filter(r => !(choices[r.key] || {}).pass).length]].forEach(([k, v]) => {
+      const d = document.createElement('div'); d.className = 'stat';
+      const b = document.createElement('b'); b.textContent = v + '명'; d.appendChild(b); d.appendChild(document.createTextNode(k)); st.appendChild(d);
+    });
+    const t = $('upTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow();
+    ['지원자 ID', '직무', '충족 개수', '상태', '판정 근거'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
+    const tb = t.createTBody();
+    rows.forEach(r => {
+      const tr = tb.insertRow(), p = (choices[r.key] || {}).pass || '';
+      tr.insertCell().textContent = r.id; tr.insertCell().textContent = r.job || '—'; tr.insertCell().textContent = r.countText || '—';
+      const td = tr.insertCell(), b = document.createElement('span');
+      b.className = 'badge ' + (p === '합격' ? 'b-ok' : p === '불합격' ? 'b-no' : 'b-none'); b.textContent = p || '판정 불가'; td.appendChild(b);
+      tr.insertCell().textContent = autoWhy[r.key] || '';
+    });
+  }
+
   function loadCsvText(text) {
     try {
       model = build(text);
       Object.keys(choices).forEach(k => delete choices[k]);
       showError('');
       $('result').classList.remove('hidden');
+      applyAuto();
       jobFilter = '';
       renderJobFilter();
       const names = [...new Set(model.rows.map(r => r.job).filter(Boolean))];
       const missing = names.filter(n => !jobs.some(j => j.name === n));
       $('upMsg').textContent = `결과표를 불러왔습니다: 지원자 ${model.rows.length}명 · 직무 ${names.length}개`;
-      $('upSub').textContent = missing.length ? `서류 합격 기준이 아직 없는 직무: ${missing.join(', ')} — 다음 단계에서 등록하세요.` : '모든 직무의 서류 합격 기준이 등록되어 있습니다. 확정 여부를 다음 단계에서 확인하세요.';
+      const draft = names.filter(n => { const j = jobs.find(x => x.name === n); return j && j.status !== '확정'; });
+      $('upSub').textContent = '등록한 서류 합격 기준에 맞는 지원자는 합격, 맞지 않는 지원자는 불합격으로 표시했습니다. 「결과표 보기」에서 사람이 바꿀 수 있습니다.'
+        + (missing.length ? ` 서류 합격 기준이 아직 없는 직무: ${missing.join(', ')} (결과표의 기준 충족 여부를 따름).` : '')
+        + (draft.length ? ` 아직 초안인 기준: ${draft.join(', ')}.` : '');
       $('upOk').classList.remove('hidden');
     } catch (e) {
       model = null; $('result').classList.add('hidden'); $('upOk').classList.add('hidden'); showError(e.message);
@@ -1138,6 +1183,7 @@ ${co} 드림`;
 
   $('file').onchange = (e) => readFile(e.target.files[0]);
   $('rankOn').onchange = render;
+  $('reapply').onclick = () => { if (!model) return; if (!confirm('등록한 기준으로 합격/불합격을 다시 정합니다. 「결과표 보기」에서 바꾼 값은 사라집니다. 계속할까요?')) return; applyAuto(); render(); };
   $('exportCsv').onclick = exportCsv;
   $('jobFilter').onchange = (e) => { jobFilter = e.target.value; render(); };
   $('sample').onclick = async () => {
