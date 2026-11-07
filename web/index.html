@@ -69,13 +69,21 @@
   .reqbox { background:var(--ok-bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-top:12px; font-size:.92rem; }
   .reqbox ul { margin:6px 0 0; padding-left:18px; }
   .issues { margin:8px 0 0; padding-left:18px; color:var(--no-fg); font-size:.9rem; }
+  .jdbox { border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin:12px 0; }
+  .jdbox summary { cursor:pointer; font-weight:600; }
+  .jdbox textarea { width:100%; min-height:140px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:8px; resize:vertical; }
+  .jdbox .modes label { margin-right:14px; }
+  .jdres { margin-top:12px; }
+  .jdres td.cond { min-width:240px; }
+  .jdres .off td { color:var(--muted); }
+  .jdlist { margin:6px 0 0; padding-left:18px; font-size:.9rem; }
 </style>
 </head>
 <body>
 <main>
   <h1>채용 서류 검토 지원</h1>
   <p class="muted">직무를 등록하고 직무별 서류 합격 기준을 정한 뒤, 서류-정리가 만든 결과표(CSV)를 올려 항목별 판정과 참고용 순위를 봅니다.</p>
-  <div class="banner">가상 데이터만 사용하세요. 올린 결과표는 이 브라우저 안에서만 읽고 저장하지 않으며 새로고침하면 사라집니다. 직무와 기준은 이 브라우저에만 저장되고 서버로 보내지 않습니다.</div>
+  <div class="banner">가상 데이터만 사용하세요. 올린 결과표는 이 브라우저 안에서만 읽고 저장하지 않으며 새로고침하면 사라집니다. 직무와 기준은 이 브라우저에만 저장됩니다. 「JD로 기준 초안 만들기」를 누를 때만 넣은 JD(글 · 링크 · 파일)가 서버와 AI(Claude)로 전송됩니다. 지원자 정보는 넣지 마세요.</div>
 
   <div class="tabs">
     <button type="button" class="tab on" id="tabView">결과표 보기</button>
@@ -115,6 +123,28 @@
             <label>충족 기준 개수 <input type="number" id="needCount" min="1" step="1"></label>
             <span class="muted" id="needHint"></span>
           </div>
+
+          <details class="jdbox" id="jdBox">
+            <summary>JD로 기준 초안 만들기 (경력 연차 · 자격증 · 보유지식 · 보유역량)</summary>
+            <p class="muted" style="margin-top:8px">채용공고(JD)를 글로 붙여넣거나, 링크 · PDF · 이미지로 넣으면 서류 요건을 네 구분으로 정리합니다. 결과는 「초안」으로만 들어가며, 고르고 고친 뒤 확정은 담당자가 합니다.</p>
+            <div class="modes row">
+              <label><input type="radio" name="jdMode" value="text" checked> 글 붙여넣기</label>
+              <label><input type="radio" name="jdMode" value="url"> 링크</label>
+              <label><input type="radio" name="jdMode" value="file"> PDF · 이미지</label>
+            </div>
+            <div id="jdInText" style="margin-top:8px"><textarea id="jdText" maxlength="40000" placeholder="JD 내용을 여기에 붙여넣으세요 (담당 업무 · 자격 요건 · 우대 사항 포함)"></textarea></div>
+            <div id="jdInUrl" class="hidden" style="margin-top:8px"><input type="text" id="jdUrl" placeholder="https://… 채용공고 주소"><p class="muted">로그인이 필요하거나 화면이 스크립트로 그려지는 페이지는 못 읽을 수 있습니다. 그때는 글 붙여넣기나 이미지를 쓰세요.</p></div>
+            <div id="jdInFile" class="hidden row" style="margin-top:8px">
+              <label class="btn plain" style="border-color:var(--line);color:var(--fg)">파일 고르기<input type="file" id="jdFile" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,application/pdf,image/*"></label>
+              <span class="muted" id="jdFileName">PDF · JPG · PNG, 3MB 이하</span>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <input type="text" id="jdCode" class="hidden" placeholder="접속 코드" style="width:160px" autocomplete="off">
+              <button type="button" id="jdRun">JD 분석하기</button>
+              <span class="muted" id="jdMsg"></span>
+            </div>
+            <div class="jdres hidden" id="jdRes"></div>
+          </details>
 
           <div class="wrap" style="margin-top:0"><table class="small" id="itemTbl"></table></div>
           <div class="row" style="margin-top:8px">
@@ -240,6 +270,8 @@
     const nc = $('needCount'); nc.value = job.count; nc.disabled = locked;
     $('needHint').textContent = `항목 ${job.items.length}개 중 ${job.count || '○'}개 이상 충족하면 「기준 충족」`;
     $('addItem').disabled = locked;
+    $('jdBox').classList.toggle('hidden', locked);
+    renderJd();
     $('confirmBtn').classList.toggle('hidden', locked);
     $('reopenBtn').classList.toggle('hidden', !locked);
 
@@ -251,7 +283,7 @@
       const tr = tb.insertRow();
       tr.insertCell().textContent = i + 1;
       [['name', '예: 경력'], ['cond', '예: 5년 이상'], ['note', '예: 해당 경력 문장 한 줄']].forEach(([k, ph]) => {
-        const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = ph; inp.value = it[k]; inp.disabled = locked; inp.maxLength = 120;
+        const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = ph; inp.value = it[k]; inp.disabled = locked; inp.maxLength = 300;
         inp.oninput = () => { it[k] = inp.value; saveJobs(); refreshIssues(); };
         tr.insertCell().appendChild(inp);
       });
@@ -325,7 +357,7 @@
           if (!j || typeof j.name !== 'string' || !Array.isArray(j.items)) { skipped++; return; }
           if (jobs.some(x => x.name === j.name)) { skipped++; return; }
           jobs.push({ id: uid(), name: j.name.slice(0, 40), count: Number.isInteger(j.count) ? j.count : '', status: j.status === '확정' ? '확정' : '초안',
-            items: j.items.slice(0, 30).map(i => ({ name: String(i.name || '').slice(0, 120), cond: String(i.cond || '').slice(0, 120), note: String(i.note || '').slice(0, 120) })) });
+            items: j.items.slice(0, 30).map(i => ({ name: String(i.name || '').slice(0, 120), cond: String(i.cond || '').slice(0, 300), note: String(i.note || '').slice(0, 300) })) });
           added++;
         });
         if (!selected && jobs[0]) selected = jobs[0].id;
@@ -346,6 +378,151 @@
   $('exportMd').onclick = exportMd;
   $('exportAll').onclick = () => download('직무_기준_전체.json', JSON.stringify({ version: 1, jobs: jobs.map(({ id, ...r }) => r) }, null, 2), 'application/json');
   $('importAll').onchange = (e) => { importAll(e.target.files[0]); e.target.value = ''; };
+
+  // ===== JD 분석 (JD → 서류 합격 기준 초안) =====
+  let jd = null; // { jobId, summary, jobTitle, rows:[{name,cond,note,found,on}], excluded, warnings }
+  const JD_MAX = 3 * 1024 * 1024;
+  const jdMsg = (t, bad) => { const m = $('jdMsg'); m.textContent = t || ''; m.style.color = bad ? 'var(--no-fg)' : ''; };
+  const condOf = (x) => [x.required && '필수: ' + x.required, x.preferred && '우대: ' + x.preferred].filter(Boolean).join(' / ');
+
+  function jdMode() { return document.querySelector('input[name=jdMode]:checked').value; }
+  function syncJdMode() {
+    const m = jdMode();
+    $('jdInText').classList.toggle('hidden', m !== 'text');
+    $('jdInUrl').classList.toggle('hidden', m !== 'url');
+    $('jdInFile').classList.toggle('hidden', m !== 'file');
+  }
+
+  function fileToB64(f) {
+    return new Promise((ok, no) => {
+      const rd = new FileReader();
+      rd.onload = () => ok(String(rd.result).split(',')[1] || '');
+      rd.onerror = () => no(new Error('파일을 읽지 못했습니다.'));
+      rd.readAsDataURL(f);
+    });
+  }
+  function fileType(f) {
+    if (f.type) return f.type;
+    const e = f.name.split('.').pop().toLowerCase();
+    return { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' }[e] || '';
+  }
+
+  async function runJd() {
+    const job = cur(); if (!job || job.status === '확정') return;
+    const body = { mode: jdMode() };
+    try {
+      if (body.mode === 'text') {
+        body.text = $('jdText').value;
+        if (body.text.trim().length < 30) return jdMsg('JD 내용을 더 길게 붙여넣어 주세요.', true);
+      } else if (body.mode === 'url') {
+        body.url = $('jdUrl').value.trim();
+        if (!body.url) return jdMsg('링크를 적어 주세요.', true);
+      } else {
+        const f = $('jdFile').files[0];
+        if (!f) return jdMsg('파일을 골라 주세요.', true);
+        if (f.size > JD_MAX) return jdMsg('파일이 3MB를 넘습니다. 더 작은 파일로 올려 주세요.', true);
+        body.file = { type: fileType(f), data: await fileToB64(f) };
+      }
+    } catch (e) { return jdMsg(e.message, true); }
+
+    const btn = $('jdRun'); btn.disabled = true; jdMsg('JD를 읽는 중입니다… (최대 1분)');
+    const headers = { 'content-type': 'application/json' };
+    try { const c = $('jdCode').value || sessionStorage.getItem('jdCode'); if (c) headers['x-access-code'] = c; } catch {}
+    try {
+      const r = await fetch('/api/analyze', { method: 'POST', headers, body: JSON.stringify(body) });
+      let data = null; try { data = await r.json(); } catch {}
+      if (!data) throw new Error(r.status === 404 ? '분석 기능이 이 주소에 배포되어 있지 않습니다.' : '분석 서버에서 올바른 응답을 받지 못했습니다. 다시 시도해 주세요.');
+      if (!r.ok) {
+        if (data.needCode) $('jdCode').classList.remove('hidden');
+        throw new Error(data.error || '분석에 실패했습니다.');
+      }
+      try { if ($('jdCode').value) sessionStorage.setItem('jdCode', $('jdCode').value); } catch {}
+      const rows = data.items.map(x => ({ name: x.category, cond: x.found ? condOf(x) : '', note: x.found && x.evidence ? 'JD 근거: ' + x.evidence : '', found: x.found, on: x.found }))
+        .concat((data.extras || []).map(x => ({ name: x.name, cond: x.cond, note: x.evidence ? 'JD 근거: ' + x.evidence : '', found: true, on: false, extra: true })));
+      jd = { jobId: job.id, summary: data.summary, jobTitle: data.jobTitle, rows, excluded: data.excluded || [], warnings: data.warnings || [] };
+      jdMsg('');
+      renderJd();
+    } catch (e) { jdMsg(e.message, true); }
+    finally { btn.disabled = false; }
+  }
+
+  function renderJd() {
+    const box = $('jdRes'); box.textContent = '';
+    const job = cur();
+    if (!jd || !job || jd.jobId !== job.id) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    const el = (tag, txt, cls) => { const e = document.createElement(tag); if (txt !== undefined) e.textContent = txt; if (cls) e.className = cls; return e; };
+
+    const head = el('p'); const b = el('b', 'JD 분석 결과'); head.appendChild(b);
+    if (jd.jobTitle) head.appendChild(document.createTextNode(' · ' + jd.jobTitle));
+    box.appendChild(head);
+    if (jd.summary) box.appendChild(el('p', jd.summary, 'muted'));
+
+    const wrap = el('div', undefined, 'wrap'); wrap.style.marginTop = '0';
+    const t = el('table', undefined, 'small');
+    const hr = t.createTHead().insertRow();
+    ['넣기', '구분', '기준 내용', 'JD 근거'].forEach(h => hr.appendChild(el('th', h)));
+    const tb = t.createTBody();
+    jd.rows.forEach(r => {
+      const tr = tb.insertRow(); if (!r.found) tr.className = 'off';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = r.on; cb.disabled = !r.found;
+      cb.onchange = () => { r.on = cb.checked; };
+      tr.insertCell().appendChild(cb);
+      tr.insertCell().textContent = r.name + (r.extra ? ' (기타)' : '');
+      const c = tr.insertCell(); c.className = 'cond'; c.textContent = r.found ? r.cond : 'JD에 명시되어 있지 않음';
+      tr.insertCell().textContent = r.note.replace(/^JD 근거: /, '') || '—';
+    });
+    wrap.appendChild(t); box.appendChild(wrap);
+
+    if (jd.excluded.length) {
+      const d = el('div', undefined, 'reqbox'); d.style.background = 'var(--no-bg)';
+      d.appendChild(el('b', 'JD에 있지만 평가 기준에 넣지 않은 요소'));
+      const ul = el('ul', undefined, 'jdlist');
+      jd.excluded.forEach(x => ul.appendChild(el('li', `${x.text} — ${x.reason}`)));
+      d.appendChild(ul); box.appendChild(d);
+    }
+    if (jd.warnings.length) {
+      const d = el('div', undefined, 'banner');
+      d.appendChild(el('b', '확인이 필요한 점'));
+      const ul = el('ul', undefined, 'jdlist');
+      jd.warnings.forEach(x => ul.appendChild(el('li', x)));
+      d.appendChild(ul); box.appendChild(d);
+    }
+
+    const row = el('div', undefined, 'row'); row.style.marginTop = '10px';
+    const hasItems = job.items.some(i => i.name.trim() || i.cond.trim() || i.note.trim());
+    const rep = el('button', hasItems ? '현재 항목을 바꾸고 넣기' : '초안에 넣기'); rep.type = 'button'; rep.onclick = () => applyJd(true);
+    row.appendChild(rep);
+    if (hasItems) { const app = el('button', '현재 항목 아래에 이어 붙이기', 'plain'); app.type = 'button'; app.onclick = () => applyJd(false); row.appendChild(app); }
+    const clr = el('button', '결과 닫기', 'plain'); clr.type = 'button'; clr.onclick = () => { jd = null; renderJd(); };
+    row.appendChild(clr);
+    box.appendChild(row);
+    box.appendChild(el('p', '넣은 뒤 아래 표에서 직접 고칠 수 있습니다. 충족 기준 개수는 담당자가 정하고, 확정도 직접 누릅니다. AI가 읽은 내용이라 JD 원문과 꼭 대조하세요.', 'muted'));
+  }
+
+  function applyJd(replace) {
+    const job = cur(); if (!job || job.status === '확정' || !jd) return;
+    const add = jd.rows.filter(r => r.on).map(r => ({ name: r.name, cond: r.cond, note: r.note }));
+    if (!add.length) return jdMsg('넣을 항목을 먼저 고르세요.', true);
+    const base = replace ? [] : job.items.filter(i => i.name.trim() || i.cond.trim() || i.note.trim());
+    if (base.length + add.length > 30) return jdMsg('항목은 30개까지입니다.', true);
+    job.items = base.concat(add);
+    if (Number(job.count) > job.items.length) job.count = '';
+    jd = null; jdMsg('');
+    saveJobs(); renderEditor();
+  }
+
+  document.querySelectorAll('input[name=jdMode]').forEach(r => r.onchange = syncJdMode);
+  $('jdRun').onclick = runJd;
+  $('jdFile').onchange = (e) => { const f = e.target.files[0]; $('jdFileName').textContent = f ? `${f.name} (${(f.size / 1024).toFixed(0)}KB)` : 'PDF · JPG · PNG, 3MB 이하'; };
+  $('jdBox').addEventListener('toggle', async () => {
+    if (!$('jdBox').open) return;
+    try {
+      const r = await fetch('/api/analyze'); const s = await r.json();
+      if (s.needCode) $('jdCode').classList.remove('hidden');
+      if (s.ready === false) jdMsg('이 배포에는 AI 키가 아직 등록되지 않아 분석을 쓸 수 없습니다.', true);
+    } catch { jdMsg('분석 서버에 연결할 수 없습니다. (배포된 주소에서만 동작합니다)', true); }
+  });
 
   // ===== 탭 =====
   function showTab(name) {
