@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>채용 서류 검토 지원</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root {
     --bg:#f7f7f5; --fg:#1f2328; --muted:#5b6470; --card:#ffffff; --line:#e2e2de; --accent:#2f6f5e;
@@ -103,12 +104,51 @@
   textarea { font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:8px; width:100%; min-height:260px; line-height:1.6; }
   input[readonly] { background:var(--none-bg); }
   .mailwarn { background:var(--part-bg); color:var(--part-fg); border-radius:8px; padding:6px 10px; margin-top:8px; font-size:.9rem; }
+
+  /* ===== 그리팅 스타일 대시보드: 흰 사이드바 + 파란 포인트 + 검정 주 버튼 ===== */
+  :root { --bg:#f6f7f9; --fg:#191919; --muted:#6b7280; --card:#ffffff; --line:#e5e7eb; --accent:#1a7cff; --soft:#eaf3ff; --side:#ffffff; --shadow:0 1px 2px rgba(16,24,40,.05); --btn:#0f0f0f; --btnfg:#ffffff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1115; --fg:#f2f4f7; --muted:#9aa3b2; --card:#181b21; --line:#2a2f38; --accent:#5aa2ff; --soft:#16253d; --side:#14171c; --shadow:none; --btn:#f2f4f7; --btnfg:#0f0f0f; } }
+  body { background:var(--bg); font-family:"Pretendard Variable",Pretendard,system-ui,-apple-system,"Malgun Gothic",sans-serif; letter-spacing:-.01em; padding-top:0; }
+  main { max-width:none; margin:0; padding:28px 32px 64px 268px; }
+  .hero { text-align:left; padding:0 0 4px; margin:0; background:none; color:var(--fg); }
+  .hero::before { display:none; }
+  .hero h1 { font-size:1.55rem; font-weight:800; margin:0 0 6px; letter-spacing:-.03em; }
+  .hero h1 br { display:none; }
+  .hero p { color:var(--muted); max-width:760px; margin:0; font-size:.95rem; }
+  .card, .wrap, .stat { border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); background:var(--card); }
+  .banner { background:var(--soft); border:1px solid transparent; border-radius:10px; color:var(--fg); }
+  h2 { font-weight:700; letter-spacing:-.02em; }
+  button, label.btn { border-radius:8px; padding:8px 16px; font-weight:600; }
+  button:not(.plain):not(.danger):not(.tab), label.btn { background:var(--btn); border-color:var(--btn); color:var(--btnfg); }
+  button:hover:not(:disabled):not(.tab), label.btn:hover { background:#2b2b2b; border-color:#2b2b2b; color:#fff; }
+  label.btn[style*="color:var(--fg)"] { background:var(--card); border-color:var(--line); color:var(--fg); }
+  label.btn[style*="color:var(--fg)"]:hover { background:var(--soft); color:var(--accent); border-color:var(--accent); }
+  button.plain { background:var(--card); border-color:var(--line); color:var(--fg); }
+  button.plain:hover:not(:disabled) { background:var(--soft); color:var(--accent); border-color:var(--accent); }
+  button.danger { background:var(--card); }
+  button:focus-visible, label.btn:focus-within, input:focus-visible, select:focus-visible { outline-color:var(--accent); }
+  input[type=text], input[type=number], select, textarea { border-radius:8px; }
+  th { color:var(--muted); font-weight:600; background:#f9fafb; }
+  @media (prefers-color-scheme: dark) { th { background:#1d2027; } }
+  .stat { padding:16px 20px; min-width:150px; }
+  .stat b { font-size:1.9rem; font-weight:800; color:var(--accent); }
+  .badge { border-radius:6px; }
+  .drop { background:var(--soft); border-color:var(--accent); }
+  .tabs { position:fixed; left:0; top:0; bottom:0; width:236px; margin:0; padding:80px 12px 16px; flex-direction:column; gap:2px; border:none; border-right:1px solid var(--line); background:var(--side); z-index:10; overflow-y:auto; }
+  .tabs::before { content:"HR REVIEW"; position:absolute; top:26px; left:22px; font-weight:800; letter-spacing:-.03em; font-size:1.2rem; color:var(--fg); padding-left:34px; line-height:30px; }
+  .tabs::after { content:""; position:absolute; top:26px; left:20px; width:28px; height:28px; border-radius:8px; background:var(--accent); }
+  .tab { border:none; border-radius:8px; text-align:left; background:transparent; color:var(--muted); padding:11px 12px; font-size:.93rem; font-weight:600; }
+  .tab.on { background:var(--soft); color:var(--accent); }
+  .tab:hover:not(:disabled):not(.on) { background:var(--bg); color:var(--fg); }
+  @media (max-width:900px) { main { padding:16px 14px 48px; } .tabs { position:relative; width:auto; flex-direction:row; padding:56px 10px 10px; margin:0 -14px 14px; overflow-x:auto; border-right:none; border-bottom:1px solid var(--line); } .tabs::before { top:14px; left:16px; } .tabs::after { top:14px; left:14px; } .tab { white-space:nowrap; } }
 </style>
 </head>
 <body>
 <main>
-  <h1>채용 서류 검토 지원</h1>
-  <p class="muted">직무를 등록하고 직무별 서류 합격 기준을 정한 뒤, 서류-정리가 만든 결과표(CSV)를 올려 항목별 판정과 참고용 순위를 봅니다.</p>
+  <header class="hero">
+  <h1>채용 서류 검토,<br>지금 한 화면에서 시작하세요</h1>
+  <p>직무를 등록하고 직무별 서류 합격 기준을 정한 뒤, 서류-정리가 만든 결과표(CSV)를 올려 항목별 판정과 참고용 순위를 봅니다.</p>
+  </header>
   <div class="banner">가상 데이터만 사용하세요. 올린 결과표는 이 브라우저 안에서만 읽고 저장하지 않으며 새로고침하면 사라집니다. 직무와 기준은 이 브라우저에만 저장됩니다. 「JD로 기준 초안 만들기」를 누를 때만 넣은 JD(글 · 링크 · 파일)가 서버와 AI(Claude)로 전송됩니다. 지원자 정보는 넣지 마세요. 연락처(이메일 · 전화번호)도 가상 값만 쓰세요. 메일은 이 화면이 보내지 않고, 초안만 만들어 메일 앱을 엽니다.</div>
 
   <div class="tabs" role="tablist" aria-label="화면 선택">
