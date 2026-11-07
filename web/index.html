@@ -211,8 +211,25 @@
   <!-- ===== 결과표 보기 ===== -->
   <section id="paneUp" role="tabpanel" aria-labelledby="tabUp">
     <div class="card">
-      <h2>① 서류 업로드</h2>
-      <p class="muted">지원서(PDF · Word)는 클로드의 /서류-정리 가 읽어 결과표.csv 로 정리합니다. 그 결과표.csv 를 여기에 올리세요. 올린 파일은 이 브라우저 안에서만 읽습니다.</p>
+      <h2>① 서류 업로드 · 지원자 이력서</h2>
+      <p class="muted">지원자 이력서(PDF · Word(docx) · 이미지 · 텍스트)를 올리세요. 여러 개를 한 번에 올릴 수 있습니다. 올린 이력서는 ③ 단계에서 「이력서 검토하기」를 누를 때만 AI(Claude)로 전송되어, ②에서 확정한 직무별 기준으로 읽힙니다. 가상 이력서만 올리세요.</p>
+      <div class="drop" id="rdrop">
+        <p>이력서 파일을 여기에 끌어다 놓거나 고르세요.</p>
+        <div class="row" style="justify-content:center">
+          <label class="btn">파일 고르기<input type="file" id="rfile" multiple accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp"></label>
+        </div>
+        <p class="err hidden" id="rErr"></p>
+      </div>
+      <div class="wrap hidden" id="rWrap"><table class="small" id="rTbl"></table></div>
+      <div class="row hidden" id="rRow" style="margin-top:10px">
+        <button type="button" id="rNext">다음: 직무 · 서류 합격 기준 →</button>
+        <button type="button" class="plain" id="rClear">모두 지우기</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>이미 정리된 결과표.csv 올리기 (선택)</h2>
+      <p class="muted">클로드의 /서류-정리 로 이미 만든 결과표.csv 가 있으면 여기에 올려 ③ 단계에서 바로 볼 수 있습니다.</p>
       <div class="drop" id="drop">
         <p>결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
         <div class="row" style="justify-content:center">
@@ -230,6 +247,19 @@
   </section>
 
   <section id="paneView" class="hidden" role="tabpanel" aria-labelledby="tabView">
+    <div class="card" id="rsCard" style="margin-top:12px">
+      <h2>이력서 검토 (AI)</h2>
+      <p class="muted" id="rsInfo"></p>
+      <div class="row">
+        <label>직무 <select id="rsJob"></select></label>
+        <input type="text" id="rsCode" class="hidden" maxlength="40" placeholder="접속 코드" style="width:140px" autocomplete="off">
+        <button type="button" id="rsRun">이력서 검토하기</button>
+        <span class="muted" id="rsMsg"></span>
+      </div>
+      <ul class="jdlist" id="rsList"></ul>
+      <div class="banner hidden" id="rsWarn"></div>
+      <p class="muted">검토는 ②에서 「확정」한 기준으로만 합니다. 결과표의 판정은 충족 / 부분 충족 / 미충족 / 근거 없음이며, 서류 합격/불합격은 사람이 고릅니다. 링크는 열지 않아 링크로만 제시된 내용은 「근거 없음」이 됩니다.</p>
+    </div>
     <p class="card muted" id="viewEmpty">먼저 「① 서류 업로드」에서 결과표를 불러오세요.</p>
     <div id="result" class="hidden">
       <div class="card row" style="margin-top:12px">
@@ -766,7 +796,7 @@
       $('tab' + id).classList.toggle('on', name === k);
       $('tab' + id).setAttribute('aria-selected', String(name === k));
     });
-    if (name === 'view') { renderJobFilter(); $('viewEmpty').classList.toggle('hidden', !!model); }
+    if (name === 'view') { renderJobFilter(); $('viewEmpty').classList.toggle('hidden', !!model); renderRs(); }
     if (name === 'pass') renderPass();
     if (name === 'iv') { if (iv) renderIv(); checkIvReady(); }
   }
@@ -774,6 +804,7 @@
   $('tabView').onclick = () => showTab('view');
   $('tabUp').onclick = () => showTab('up');
   $('upNext').onclick = () => showTab('jobs');
+  $('rNext').onclick = () => showTab('jobs');
   $('jobsNext').onclick = () => showTab('view');
   $('viewNext').onclick = () => showTab('pass');
   $('tabPass').onclick = () => showTab('pass');
@@ -1458,6 +1489,126 @@ ${co} 드림`;
   ['dragenter', 'dragover'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.remove('over'); }));
   ivDrop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => loadIv(String(rd.result)); rd.readAsText(f, 'utf-8'); });
+
+  // ===== 지원자 이력서 업로드 → 직무별 기준으로 AI 검토 → 결과표 =====
+  const resumes = []; // { id, file }
+  const R_MAX = 3 * 1024 * 1024, R_EXT = ['pdf', 'docx', 'txt', 'md', 'jpg', 'jpeg', 'png', 'gif', 'webp'], R_LIMIT = 30;
+  const rErr = (m) => { const e = $('rErr'); e.textContent = m; e.classList.toggle('hidden', !m); };
+  const extOf = (n) => (n.split('.').pop() || '').toLowerCase();
+
+  function addResumes(files) {
+    const bad = [];
+    [...files].forEach(f => {
+      if (!R_EXT.includes(extOf(f.name))) return bad.push(f.name + ' (지원하지 않는 형식)');
+      if (f.size > R_MAX) return bad.push(f.name + ' (3MB 초과)');
+      if (resumes.length >= R_LIMIT) return bad.push(f.name + ' (최대 ' + R_LIMIT + '개)');
+      if (resumes.some(r => r.file.name === f.name && r.file.size === f.size)) return;
+      resumes.push({ id: uid(), file: f });
+    });
+    rErr(bad.length ? '올리지 못한 파일: ' + bad.join(', ') + '. PDF, Word(docx), 이미지, 텍스트만 3MB 이하로 올릴 수 있습니다.' : '');
+    renderResumes();
+  }
+
+  function renderResumes() {
+    $('rWrap').classList.toggle('hidden', !resumes.length);
+    $('rRow').classList.toggle('hidden', !resumes.length);
+    const t = $('rTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow(); ['번호', '파일 이름', '크기', ''].forEach(h => hr.appendChild(mk('th', h)));
+    const tb = t.createTBody();
+    resumes.forEach((r, i) => {
+      const tr = tb.insertRow();
+      tr.insertCell().textContent = i + 1; tr.insertCell().textContent = r.file.name; tr.insertCell().textContent = (r.file.size / 1024).toFixed(0) + 'KB';
+      const b = mk('button', '빼기', 'plain'); b.type = 'button'; b.onclick = () => { resumes.splice(i, 1); renderResumes(); };
+      tr.insertCell().appendChild(b);
+    });
+    renderRs();
+  }
+
+  const rsMsg = (t, bad) => { const m = $('rsMsg'); m.textContent = t || ''; m.style.color = bad ? 'var(--no-fg)' : ''; };
+
+  function renderRs() {
+    const confirmed = jobs.filter(j => j.status === '확정');
+    const sel = $('rsJob'); const keep = sel.value; sel.textContent = '';
+    const auto = mk('option', '이력서에 적힌 지원 직무로 자동'); auto.value = ''; sel.appendChild(auto);
+    confirmed.forEach(j => { const o = mk('option', j.name); o.value = j.name; sel.appendChild(o); });
+    sel.value = confirmed.some(j => j.name === keep) ? keep : '';
+    $('rsInfo').textContent = '올린 이력서 ' + resumes.length + '개 · 확정된 직무 기준 ' + confirmed.length + '개' +
+      (!resumes.length ? ' — ① 서류 업로드에서 이력서를 먼저 올리세요.' : !confirmed.length ? ' — ② 직무 · 서류 합격 기준에서 기준을 「확정」하세요.' : '');
+    $('rsRun').disabled = !resumes.length || !confirmed.length;
+  }
+
+  async function reviewOne(r, payloadJobs, headers) {
+    const data = await fileToB64(r.file);
+    const res = await fetch('/api/analyze-resume', { method: 'POST', headers, body: JSON.stringify({ jobs: payloadJobs, file: { name: r.file.name, type: r.file.type, data } }) });
+    let j = null; try { j = await res.json(); } catch {}
+    if (!j) throw Object.assign(new Error(res.status === 404 ? '검토 기능이 이 주소에 배포되어 있지 않습니다.' : '서버에서 올바른 응답을 받지 못했습니다.'), { fatal: res.status === 404 });
+    if (!res.ok) throw Object.assign(new Error(j.error || '검토에 실패했습니다.'), { needCode: !!j.needCode, fatal: [401, 500, 503].includes(res.status) });
+    return j;
+  }
+
+  async function runResumes() {
+    const confirmed = jobs.filter(j => j.status === '확정');
+    const pick = $('rsJob').value;
+    const use = pick ? confirmed.filter(j => j.name === pick) : confirmed;
+    if (!resumes.length) return rsMsg('이력서를 먼저 올리세요.', true);
+    if (!use.length) return rsMsg('확정된 직무 기준이 없습니다. ②에서 확정하세요.', true);
+    const payloadJobs = use.map(j => ({ name: j.name, count: j.count, items: j.items.map(i => ({ name: i.name, cond: i.cond, note: i.note })) }));
+    const headers = { 'content-type': 'application/json' };
+    try { const c = $('rsCode').value || sessionStorage.getItem('jdCode'); if (c) headers['x-access-code'] = c; } catch {}
+    const btn = $('rsRun'); btn.disabled = true; rsMsg('');
+    const list = $('rsList'); list.textContent = ''; $('rsWarn').classList.add('hidden');
+    const lis = resumes.map(r => { const li = mk('li', r.file.name + ' — 대기 중'); list.appendChild(li); return li; });
+    const results = new Array(resumes.length); let next = 0, fatal = null, done = 0;
+    const worker = async () => {
+      while (!fatal) {
+        const i = next++; if (i >= resumes.length) return;
+        lis[i].textContent = resumes[i].file.name + ' — 읽는 중…';
+        try {
+          const j = await reviewOne(resumes[i], payloadJobs, headers);
+          results[i] = j;
+          lis[i].textContent = resumes[i].file.name + ' — ' + (j.readFail ? '읽기 실패: ' + j.readFail : '완료 (' + j.job + ' · 충족 ' + j.count + '/' + j.total + ')');
+        } catch (e) {
+          if (e.needCode) $('rsCode').classList.remove('hidden');
+          if (e.fatal || e.needCode) { fatal = e; lis[i].textContent = resumes[i].file.name + ' — ' + e.message; return; }
+          results[i] = { readFail: '검토 실패 — ' + e.message };
+          lis[i].textContent = resumes[i].file.name + ' — 검토 실패: ' + e.message;
+        }
+        rsMsg((++done) + '/' + resumes.length + ' 완료');
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    btn.disabled = false;
+    if (fatal) return rsMsg(fatal.message, true);
+    try { if ($('rsCode').value) sessionStorage.setItem('jdCode', $('rsCode').value); } catch {}
+
+    // 결과표.csv 와 같은 양식으로 만들어 기존 결과표 화면에 넣는다
+    const names = []; use.forEach(j => j.items.forEach(i => { if (!names.includes(i.name)) names.push(i.name); }));
+    const head = ['지원자 ID', '직무'].concat(...names.map(n => [n + ' 판정', n + ' 근거']), ['기준 충족 개수', '기준 충족 여부', '링크 확인 상태', '읽기 실패 여부', '서류 합격/불합격', '면접 대상', '이름', '이메일', '전화번호']);
+    const used = new Set(); const warns = [];
+    const rows = results.map((j, i) => {
+      const base = resumes[i].file.name.replace(/\.[^.]+$/, '');
+      let id = (j && j.id) || base; if (used.has(id)) id = id + ' (' + resumes[i].file.name + ')'; used.add(id);
+      if (j && j.instruction) warns.push(id + ': 이력서 안의 지시문을 따르지 않았습니다 — 「' + j.instruction + '」');
+      if (j && j.contactWarn) warns.push(id + ': 가상 형식이 아닌 연락처로 보여 이름 외 연락처 칸을 비웠습니다. 가상 데이터만 쓰세요.');
+      if (!j || j.readFail) return [id, pick || ''].concat(...names.map(() => ['', '']), ['', '', '', '읽기 실패 (' + ((j && j.readFail) || '결과 없음') + ')', '', '', '', '', '']);
+      const byName = Object.fromEntries(j.items.map(it => [it.name, it]));
+      return [id, j.job].concat(...names.map(n => byName[n] ? [byName[n].verdict, byName[n].evidence] : ['', '']), [j.count + '/' + j.total, j.met, j.linkStatus, '', '', '', j.name || '', j.email || '', j.phone || '']);
+    });
+    const csv = [head].concat(rows).map(r => r.map(csvCell).join(',')).join('\r\n');
+    loadCsvText(csv);
+    const w = $('rsWarn'); w.textContent = '';
+    warns.forEach(x => w.appendChild(mk('div', x))); w.classList.toggle('hidden', !warns.length);
+    rsMsg('검토를 마쳤습니다. 아래 결과표를 확인하고 서류 합격/불합격은 직접 고르세요.');
+  }
+
+  $('rsRun').onclick = runResumes;
+  $('rfile').onchange = (e) => { addResumes(e.target.files); e.target.value = ''; };
+  $('rClear').onclick = () => { resumes.length = 0; renderResumes(); rErr(''); };
+  const rdrop = $('rdrop');
+  ['dragenter', 'dragover'].forEach(ev => rdrop.addEventListener(ev, (e) => { e.preventDefault(); rdrop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => rdrop.addEventListener(ev, (e) => { e.preventDefault(); rdrop.classList.remove('over'); }));
+  rdrop.addEventListener('drop', (e) => addResumes(e.dataTransfer.files));
+  renderRs();
 </script>
 </body>
 </html>

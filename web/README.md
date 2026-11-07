@@ -14,3 +14,4 @@
 
 - GitHub 저장소 `build3` 의 `main` 에 올리면 Vercel 이 `web/` 을 자동으로 배포한다 (Root Directory = web).
 - 배포 주소: https://hr-resume-review-five.vercel.app
+- 지원자 이력서 검토(`api/analyze-resume.js`): PDF · Word(docx) · 이미지 · 텍스트(3MB 이하)를 ②에서 확정한 직무 기준으로 읽어 결과표 양식(판정 · 근거 · 충족 개수)으로 돌려준다. 같은 `ANTHROPIC_API_KEY` · `ACCESS_CODE` 를 쓴다. 링크는 열지 않으며, 서류 합격/불합격은 정하지 않는다.
