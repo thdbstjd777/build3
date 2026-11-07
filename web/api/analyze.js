@@ -170,7 +170,10 @@ async function askClaude(source) {
   if (!r.ok) {
     if (r.status === 401 || r.status === 403) throw httpErr(500, '서버의 AI 키 설정이 올바르지 않습니다. 관리자에게 알려 주세요.');
     if (r.status === 429) throw httpErr(429, 'AI 사용량이 몰렸습니다. 잠시 뒤 다시 시도해 주세요.');
-    throw httpErr(502, `AI 호출에 실패했습니다 (${r.status}).`);
+    let why = '';
+    try { const j = await r.json(); why = String((j.error && j.error.message) || '').slice(0, 200); } catch {}
+    console.error('Anthropic API error', r.status, why);
+    throw httpErr(502, `AI 호출에 실패했습니다 (${r.status})${why ? ': ' + why : ''}`);
   }
   const data = await r.json();
   const block = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
