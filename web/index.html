@@ -287,9 +287,15 @@
   <section id="paneIv" class="hidden" role="tabpanel" aria-labelledby="tabIv">
     <div class="card" style="margin-top:12px">
       <h2>면접 질문지 · 평가표</h2>
-      <p class="muted">클로드의 /면접-질문지 가 만든 질문지.csv 를 올리면 직무별 질문과 BEST/WORST 기준을 보고, 면접관이 매긴 점수를 적어 합계를 냅니다. 점수는 사람이 적은 값만 더하며 이 화면이 매기지 않습니다. 총점은 참고 자료이고 합격 · 채용은 담당자가 정합니다.</p>
+      <p class="muted">「결과표 보기」에서 서류 합격으로 고른 지원자의 직무 · 평가 항목을 읽어 AI가 질문지를 바로 만듭니다. 면접관이 점수를 적으면 합계를 냅니다. 점수는 사람이 적은 값만 더하며 이 화면이 매기지 않고, 질문도 입력된 자료에서만 만들며 합격 · 채용은 담당자가 정합니다.</p>
+      <div class="row" style="margin:10px 0">
+        <button type="button" id="ivAuto">서류 합격자로 자동 만들기</button>
+        <input type="text" id="ivCode" class="hidden" maxlength="40" placeholder="접속 코드">
+        <span class="muted" id="ivAutoMsg"></span>
+      </div>
+      <p class="muted" id="ivAutoHint"></p>
       <div class="drop" id="ivDrop">
-        <p>질문지.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
+        <p>또는 질문지.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
         <div class="row" style="justify-content:center">
           <label class="btn">파일 고르기<input type="file" id="ivFile" accept=".csv,text/csv"></label>
           <button type="button" id="ivSample">가상 예시 불러오기</button>
@@ -347,10 +353,8 @@
     <p class="muted">이 화면은 메일을 보내지 않습니다. 「메일 앱으로 열기」를 누르면 받는 사람(지원자)과 제목 · 본문이 채워진 새 메일 창이 열리고, 보내기는 담당자가 메일 앱에서 직접 누릅니다.</p>
     <div class="mailgrid">
       <label for="mTo">받는 사람</label><input type="text" id="mTo" readonly>
-      <label for="mTel">전화번호</label><input type="text" id="mTel" readonly>
-      <label for="mHon">지원자 호칭</label><input type="text" id="mHon" maxlength="40" placeholder="예: 홍길동">
+      <label for="mHon">지원자 이름</label><input type="text" id="mHon" maxlength="40" placeholder="예: 홍길동 (결과표에 「이름」 칸이 있으면 자동으로 채워집니다)">
       <label for="mCo">회사명</label><input type="text" id="mCo" maxlength="40">
-      <label for="mStaff">담당자 이름</label><input type="text" id="mStaff" maxlength="40">
       <label for="mStaffTel">담당자 연락처</label><input type="text" id="mStaffTel" maxlength="60">
       <label for="mSubj">제목</label><input type="text" id="mSubj" maxlength="150">
     </div>
@@ -764,7 +768,7 @@
     });
     if (name === 'view') { renderJobFilter(); $('viewEmpty').classList.toggle('hidden', !!model); }
     if (name === 'pass') renderPass();
-    if (name === 'iv' && iv) renderIv();
+    if (name === 'iv') { if (iv) renderIv(); checkIvReady(); }
   }
   $('tabJobs').onclick = () => showTab('jobs');
   $('tabView').onclick = () => showTab('view');
@@ -782,7 +786,7 @@
   const EMAIL_COLS = ['이메일', '메일 주소', '메일주소'];
   const PHONE_COLS = ['전화번호', '휴대전화', '연락처'];
   const mailed = {}; // 메일 초안을 연 지원자 키 -> true
-  const mailInfo = { company: '', staff: '', staffTel: '' }; // 담당자가 한 번 적으면 다음 지원자에게도 채운다
+  const mailInfo = { company: '', staffTel: '' }; // 담당자가 한 번 적으면 다음 지원자에게도 채운다
   const PH = '[입력 필요]';
   const validEmail = (e) => /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(e || '');
   const contactOf = (r) => ({ email: r.email || '', phone: r.phone || '' }); // 결과표의 「이메일」 「전화번호」 칸 (지원서에서 읽은 값)
@@ -830,7 +834,7 @@
         count: m ? +m[1] : null, total: m ? +m[2] : null, countText: cnt,
         met: get(r, '기준 충족 여부'), link: get(r, '링크 확인 상태'), fail: get(r, '읽기 실패 여부'),
         pass0: get(r, '서류 합격/불합격'),
-        email: getAny(r, EMAIL_COLS), phone: getAny(r, PHONE_COLS),
+        email: getAny(r, EMAIL_COLS), phone: getAny(r, PHONE_COLS), name: getAny(r, ['이름', '지원자 이름']),
       };
     });
     return { items, rows: out, head };
@@ -968,7 +972,8 @@
     const t = $('tbl'); t.textContent = '';
     const hr = t.createTHead().insertRow();
     const hasContact = model.rows.some(r => { const c = contactOf(r); return c.email || c.phone; });
-    const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID', '직무'], model.items, ['충족 개수', '기준 충족 여부', '링크'], hasContact ? ['이메일', '전화번호'] : [], ['서류 합격/불합격', '다음 단계']);
+    const hasName = model.rows.some(r => r.name);
+    const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID'], hasName ? ['이름'] : [], ['직무'], model.items, ['충족 개수', '기준 충족 여부', '링크'], hasContact ? ['이메일', '전화번호'] : [], ['서류 합격/불합격', '다음 단계']);
     heads.forEach(h => { const th = document.createElement('th'); th.textContent = h; if (h === '순위') th.className = 'rank'; if (h === '지원자 ID') th.className = 'idc'; hr.appendChild(th); });
     t.style.setProperty('--rk', rankOn ? '48px' : '0px');
     const tb = t.createTBody();
@@ -982,7 +987,7 @@
       const tr = tb.insertRow(); if (r.fail) tr.className = 'fail';
       const add = (txt) => { const td = tr.insertCell(); if (txt !== undefined) td.textContent = txt; return td; };
       if (rankOn) { const td = add(r.fail ? '—' : (ranks.get(r.key) ?? '—')); td.className = 'rank'; }
-      add(r.id).className = 'idc'; add(r.job || '—');
+      add(r.id).className = 'idc'; if (hasName) add(r.name || '—'); add(r.job || '—');
       model.items.forEach((_, i) => {
         const td = tr.insertCell();
         if (r.fail) { td.textContent = '—'; return; }
@@ -1038,9 +1043,10 @@
   function mailDraft(r) {
     const v = (id) => $(id).value.trim() || PH;
     const job = r.job || PH, co = v('mCo');
-    const subject = `${co === PH ? co : '[' + co + ']'} ${job} 지원 결과 안내`;
+    const subject = `${co === PH ? co : '[' + co + ']'} 서류 결과 안내드립니다.`;
+    const staff = `${co} 채용담당자`;
     const body = `안녕하세요, ${v('mHon')}님.
-${co} 채용 담당자 ${v('mStaff')}입니다.
+${staff}입니다.
 
 ${job} 직무에 지원해 주셔서 진심으로 감사드립니다.
 
@@ -1050,7 +1056,7 @@ ${job} 직무에 지원해 주셔서 진심으로 감사드립니다.
 앞으로도 ${co}에 관심을 가져 주시면 감사하겠습니다.
 문의 사항은 아래 연락처로 알려 주세요.
 
-담당자: ${v('mStaff')}
+담당자: ${staff}
 연락처: ${v('mStaffTel')}
 
 ${co} 드림`;
@@ -1068,8 +1074,8 @@ ${co} 드림`;
   function openMail(r) {
     const ct = contactOf(r);
     mailRow = r; mailDirty = false;
-    $('mTo').value = ct.email; $('mTel').value = ct.phone || '(없음)';
-    $('mHon').value = ''; $('mCo').value = mailInfo.company; $('mStaff').value = mailInfo.staff; $('mStaffTel').value = mailInfo.staffTel;
+    $('mTo').value = ct.email;
+    $('mHon').value = r.name || ''; $('mCo').value = mailInfo.company; $('mStaffTel').value = mailInfo.staffTel;
     $('mMsg').classList.add('hidden');
     regenMail();
     $('mailBg').classList.remove('hidden'); $('mHon').focus();
@@ -1092,7 +1098,7 @@ ${co} 드림`;
     const a = document.createElement('a'); a.href = url; document.body.appendChild(a); a.click(); a.remove();
     mailed[mailRow.key] = true; mMsg(note); render();
   }
-  [['mCo', 'company'], ['mStaff', 'staff'], ['mStaffTel', 'staffTel']].forEach(([id, k]) => { $(id).oninput = () => { mailInfo[k] = $(id).value.trim(); regenMail(); }; });
+  [['mCo', 'company'], ['mStaffTel', 'staffTel']].forEach(([id, k]) => { $(id).oninput = () => { mailInfo[k] = $(id).value.trim(); regenMail(); }; });
   $('mHon').oninput = regenMail;
   $('mSubj').oninput = () => { mailDirty = true; refreshMailWarn(); };
   $('mBody').oninput = () => { mailDirty = true; refreshMailWarn(); };
@@ -1239,11 +1245,67 @@ ${co} 드림`;
   let ivJob = '', ivCand = '', ivPending = null;
   function goInterview(job, id) {
     showTab('iv');
-    if (!iv) { ivPending = { job, id }; ivErr('먼저 질문지.csv 를 올리세요 (클로드의 /면접-질문지 로 만듭니다). 올리면 ' + (id ? id + ' 지원자의 질문이 바로 열립니다.' : '해당 직무의 질문이 열립니다.')); return; }
+    if (!iv) { ivPending = { job, id }; ivErr('먼저 「서류 합격자로 자동 만들기」를 누르거나 질문지.csv 를 올리세요. 그러면 ' + (id ? id + ' 지원자의 질문이 열립니다.' : '해당 직무의 질문이 열립니다.')); return; }
     if (ivJobs().includes(job)) { ivJob = job; ivCand = id || ''; renderIv(); if (id && !ivAllCands().includes(id)) ivErr(id + ' 지원자의 질문이 질문지에 없습니다. /면접-질문지 에서 이 지원자를 넣어 다시 만드세요.'); else ivErr(''); }
     else ivErr('질문지에 「' + job + '」 직무의 질문이 없습니다.');
   }
   const ivErr = (m) => { const e = $('ivErr'); e.textContent = m; e.classList.toggle('hidden', !m); };
+
+  // ---- 서류 합격자로 자동 만들기 ----
+  let ivReady = null; // null=확인 전, true/false
+  let ivBusy = false;
+  function ivAutoMsg(m, bad) { const e = $('ivAutoMsg'); if (!e) return; e.textContent = m || ''; e.style.color = bad ? 'var(--no-fg)' : ''; }
+
+  async function checkIvReady() {
+    if (ivReady !== null) return;
+    try {
+      const r = await fetch('/api/interview-questions'); const s = await r.json();
+      ivReady = !!s.ready;
+      if (s.needCode) $('ivCode').classList.remove('hidden');
+      $('ivAutoHint').textContent = ivReady ? '' : '이 배포에는 AI 키가 아직 등록되지 않아 자동 생성을 쓸 수 없습니다. 아래에서 질문지.csv를 직접 올리세요.';
+    } catch {
+      ivReady = false;
+      $('ivAutoHint').textContent = '자동 생성 서버에 연결할 수 없습니다 (배포된 주소에서만 동작합니다). 아래에서 질문지.csv를 직접 올리세요.';
+    }
+  }
+
+  function ivAutoJobs() {
+    if (!model) return null;
+    const byJob = new Map();
+    model.rows.forEach((r) => {
+      if (r.fail) return;
+      if (passOf(r) !== '합격') return;
+      const job = r.job || '(직무 없음)';
+      if (!byJob.has(job)) byJob.set(job, []);
+      byJob.get(job).push({ id: r.id, items: model.items.map((name, i) => ({ name, judge: r.judge[i].v, evidence: r.judge[i].why })) });
+    });
+    return [...byJob.entries()].map(([job, candidates]) => ({ job, candidates }));
+  }
+
+  async function runIvAuto() {
+    if (ivBusy) return;
+    if (!model) return ivAutoMsg('먼저 「결과표 보기」에서 결과표를 불러오세요.', true);
+    const jobs = ivAutoJobs();
+    if (!jobs || !jobs.length) return ivAutoMsg('서류 합격자가 없습니다. 「결과표 보기」에서 합격을 고른 뒤 다시 누르세요.', true);
+    ivBusy = true; const btn = $('ivAuto'); btn.disabled = true; ivAutoMsg('AI가 질문지를 만드는 중입니다… (최대 1분)');
+    const headers = { 'content-type': 'application/json' };
+    try { const c = $('ivCode').value || sessionStorage.getItem('jdCode'); if (c) headers['x-access-code'] = c; } catch {}
+    try {
+      const r = await fetch('/api/interview-questions', { method: 'POST', headers, body: JSON.stringify({ jobs }) });
+      let data = null; try { data = await r.json(); } catch {}
+      if (!data) throw new Error(r.status === 404 ? '자동 생성 기능이 이 주소에 배포되어 있지 않습니다.' : '서버에서 올바른 응답을 받지 못했습니다. 다시 시도해 주세요.');
+      if (!r.ok) { if (data.needCode) $('ivCode').classList.remove('hidden'); throw new Error(data.error || '만들지 못했습니다.'); }
+      try { if ($('ivCode').value) sessionStorage.setItem('jdCode', $('ivCode').value); } catch {}
+      if (!Array.isArray(data.rows) || !data.rows.length) throw new Error('AI가 질문을 만들지 못했습니다. 다시 시도해 주세요.');
+      iv = { rows: data.rows.map((row) => ({ ...row, adopt: false })) };
+      Object.keys(scores).forEach((k) => delete scores[k]);
+      ivJob = ''; ivCand = ''; ivErr('');
+      ivAutoMsg(`만들었습니다 (지원자 ${jobs.reduce((n, j) => n + j.candidates.length, 0)}명 · 직무 ${jobs.length}개). 아래에서 질문을 확인하세요.`);
+      $('ivBody').classList.remove('hidden');
+      renderIv();
+    } catch (e) { ivAutoMsg(e.message, true); }
+    finally { ivBusy = false; btn.disabled = false; }
+  }
 
   function loadIv(text) {
     try {
@@ -1391,6 +1453,7 @@ ${co} 드림`;
   $('ivCandCsv').onclick = ivCandCsv; $('ivAllCsv').onclick = ivAllCsv; $('ivQCsv').onclick = ivQCsv;
   $('ivFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => loadIv(String(rd.result)); rd.onerror = () => ivErr('파일을 읽지 못했습니다.'); rd.readAsText(f, 'utf-8'); e.target.value = ''; };
   $('ivSample').onclick = async () => { try { const r = await fetch('sample-questions.csv'); if (!r.ok) throw 0; loadIv(await r.text()); } catch { ivErr('가상 예시를 불러오지 못했습니다.'); } };
+  $('ivAuto').onclick = runIvAuto;
   const ivDrop = $('ivDrop');
   ['dragenter', 'dragover'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.remove('over'); }));
