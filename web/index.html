@@ -187,9 +187,11 @@
             <div class="jdres hidden" id="jdRes"></div>
           </details>
 
-          <div class="wrap" style="margin-top:0"><table class="small" id="itemTbl"></table></div>
+          <div class="banner" style="margin-top:0"><b>표준 서류 합격 기준</b> — 경력 5년 이상 · 학사 이상 학위 · 업무 관련 자격증(사회복지사 1급 또는 평생교육사 1급만 유효) · 직무 관련 교육 200시간 이상, 4개 중 3개 이상 충족. 아래 「표준 기준 적용」을 누르면 이 4개가 항목에 그대로 들어갑니다.</div>
+          <div class="wrap" style="margin-top:10px"><table class="small" id="itemTbl"></table></div>
           <div class="row" style="margin-top:8px">
             <button type="button" class="plain" id="addItem">항목 추가</button>
+            <button type="button" class="plain" id="applyDefault">표준 기준 적용</button>
           </div>
 
           <ul class="issues hidden" id="issues"></ul>
@@ -403,6 +405,23 @@
     saveJobs(); renderJobs();
   }
 
+  // 표준 서류 합격 정량 기준 (4개 중 3개 이상 충족)
+  const DEFAULT_ITEMS = [
+    { name: '경력', cond: '5년 이상', note: '해당 경력 문장 한 줄' },
+    { name: '학위', cond: '학사 이상', note: '해당 학위 문장 한 줄' },
+    { name: '업무 관련 자격증', cond: '사회복지사 1급 또는 평생교육사 1급 (이 둘만 유효)', note: '해당 자격 문장 한 줄' },
+    { name: '직무 관련 교육', cond: '200시간 이상 이수', note: '해당 교육 시간 문장 한 줄 (링크에서 나온 것은 따로 표시)' },
+  ];
+  function applyDefault() {
+    const job = cur(); if (!job || job.status === '확정') return;
+    const hasContent = job.items.some((i) => i.name.trim() || i.cond.trim() || i.note.trim());
+    if (hasContent && !confirm('현재 항목을 표준 기준(경력 · 학위 · 업무 관련 자격증 · 직무 관련 교육) 4개로 바꿀까요? 지금 적어둔 내용은 사라집니다.')) return;
+    job.items = DEFAULT_ITEMS.map((i) => ({ ...i }));
+    job.count = 3;
+    jobErr('');
+    saveJobs(); renderEditor();
+  }
+
   function badWordIn(text) { return BAD_WORDS.find(w => text.includes(w)); }
 
   function issuesOf(job) {
@@ -472,6 +491,7 @@
     const nc = $('needCount'); nc.value = job.count; nc.disabled = locked;
     $('needHint').textContent = `항목 ${job.items.length}개 중 ${job.count || '○'}개 이상 충족하면 「기준 충족」`;
     $('addItem').disabled = locked;
+    $('applyDefault').disabled = locked;
     $('jdBox').classList.toggle('hidden', locked);
     renderJd();
     $('confirmBtn').classList.toggle('hidden', locked);
@@ -588,6 +608,7 @@
   $('addJob').onclick = addJob;
   $('newJob').onkeydown = (e) => { if (e.key === 'Enter') addJob(); };
   $('addItem').onclick = () => { const j = cur(); if (!j || j.items.length >= 30) return; j.items.push({ name: '', cond: '', note: '' }); saveJobs(); renderEditor(); };
+  $('applyDefault').onclick = applyDefault;
   $('needCount').oninput = (e) => { const j = cur(); if (!j) return; j.count = e.target.value === '' ? '' : Number(e.target.value); saveJobs(); refreshIssues(); };
   $('confirmBtn').onclick = confirmJob;
   $('reopenBtn').onclick = reopenJob;
