@@ -5,29 +5,229 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>채용 서류 검토 지원</title>
 <style>
-  :root { --bg:#f7f7f5; --fg:#1f2328; --muted:#5b6470; --card:#ffffff; --line:#e2e2de; --accent:#2f6f5e; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#17191c; --fg:#e8e8e6; --muted:#9aa3ad; --card:#1f2226; --line:#32363b; --accent:#6fbfa8; }
+  :root {
+    --bg:#f7f7f5; --fg:#1f2328; --muted:#5b6470; --card:#ffffff; --line:#e2e2de; --accent:#2f6f5e;
+    --ok-bg:#e3f3ec; --ok-fg:#1d5a45; --part-bg:#fdf1d6; --part-fg:#7a5600;
+    --no-bg:#fbe5e3; --no-fg:#8e2b22; --none-bg:#ececea; --none-fg:#505862; --warn-bg:#fff6df; --warn-line:#e8c872;
   }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif; line-height:1.6; }
-  main { max-width:640px; margin:0 auto; padding:64px 16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:32px 24px; }
-  h1 { margin:0 0 8px; font-size:1.5rem; }
-  p { margin:0 0 12px; color:var(--muted); }
-  .tag { display:inline-block; margin-bottom:16px; padding:2px 10px; border-radius:999px; border:1px solid var(--accent); color:var(--accent); font-size:.85rem; }
-  .note { margin-top:20px; padding-top:16px; border-top:1px solid var(--line); font-size:.9rem; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#17191c; --fg:#e8e8e6; --muted:#9aa3ad; --card:#1f2226; --line:#32363b; --accent:#6fbfa8;
+      --ok-bg:#1d3a30; --ok-fg:#8fd6bb; --part-bg:#3d3216; --part-fg:#efce7a;
+      --no-bg:#40201d; --no-fg:#f0a39b; --none-bg:#2c3035; --none-fg:#b3bac2; --warn-bg:#35301c; --warn-line:#7b6a2e;
+    }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif; line-height:1.55; }
+  main { max-width:1200px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { margin:0 0 4px; font-size:1.4rem; }
+  p { margin:0 0 8px; }
+  .muted { color:var(--muted); font-size:.92rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
+  .banner { background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:10px; padding:10px 14px; margin-top:12px; font-size:.92rem; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:24px 16px; text-align:center; }
+  .drop.over { border-color:var(--accent); }
+  button, select, label.btn { font:inherit; color:inherit; }
+  button, label.btn { display:inline-block; cursor:pointer; background:var(--card); border:1px solid var(--accent); color:var(--accent); border-radius:8px; padding:6px 14px; }
+  button:hover, label.btn:hover { background:var(--accent); color:var(--bg); }
+  input[type=file] { display:none; }
+  select { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:3px 6px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 14px; min-width:120px; }
+  .stat b { display:block; font-size:1.3rem; }
+  .wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; margin-top:12px; background:var(--card); }
+  table { border-collapse:collapse; width:100%; min-width:900px; font-size:.9rem; }
+  th, td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  th { position:sticky; top:0; background:var(--card); font-weight:600; white-space:nowrap; }
+  tr.fail td { color:var(--muted); background:var(--none-bg); }
+  .badge { display:inline-block; padding:1px 8px; border-radius:999px; font-size:.8rem; font-weight:600; white-space:nowrap; }
+  .b-ok { background:var(--ok-bg); color:var(--ok-fg); }
+  .b-part { background:var(--part-bg); color:var(--part-fg); }
+  .b-no { background:var(--no-bg); color:var(--no-fg); }
+  .b-none { background:var(--none-bg); color:var(--none-fg); }
+  .why { display:block; color:var(--muted); font-size:.82rem; margin-top:2px; }
+  .rank { font-weight:700; text-align:center; }
+  .err { color:var(--no-fg); margin-top:8px; }
+  .hidden { display:none; }
 </style>
 </head>
 <body>
 <main>
+  <h1>채용 서류 검토 지원</h1>
+  <p class="muted">서류-정리가 만든 결과표(CSV)를 올리면 항목별 판정, 기준 충족 개수, 참고용 순위를 한 화면에서 봅니다.</p>
+  <div class="banner">가상 데이터만 올리세요. 올린 파일은 이 브라우저 안에서만 읽고 어디에도 저장하지 않습니다. 새로고침하면 모두 사라집니다.</div>
+
   <div class="card">
-    <span class="tag">준비 중</span>
-    <h1>채용 서류 검토 지원</h1>
-    <p>결과표(CSV)를 올리면 항목별 판정, 기준 충족 개수, 참고용 순위를 한 화면에서 볼 수 있는 페이지입니다.</p>
-    <p>이 화면은 배포가 잘 되는지 확인하기 위한 임시 페이지입니다. 기능 6이 완성되면 이 자리에 바뀝니다.</p>
-    <p class="note">가상 데이터만 사용합니다. 실제 지원자 정보는 올리지 마세요. 서류 합격/불합격과 면접 대상은 사람이 정합니다.</p>
+    <div class="drop" id="drop">
+      <p>결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
+      <div class="row" style="justify-content:center">
+        <label class="btn">파일 고르기<input type="file" id="file" accept=".csv,text/csv"></label>
+        <button type="button" id="sample">가상 예시 불러오기</button>
+      </div>
+      <p class="err hidden" id="err"></p>
+    </div>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="stats" id="stats"></div>
+    <div class="card row" style="margin-top:12px">
+      <label><input type="checkbox" id="rankOn" checked> 참고용 순위 보기</label>
+      <span class="muted">끄면 순위 없이 항목별 표만 보입니다.</span>
+    </div>
+    <div class="banner" id="rankNote">참고용 순위 · 최종 결정은 담당자. 순위는 기준 충족 개수 순이며, 같은 개수는 같은 순위입니다. 합격/불합격과 면접 대상은 아래 칸에서 사람이 직접 고릅니다.</div>
+    <div class="wrap"><table id="tbl"></table></div>
   </div>
 </main>
+
+<script>
+  // 결과표 웹 화면 (기능 6). 올린 파일은 브라우저 안에서만 읽고 저장하지 않는다.
+  const $ = (id) => document.getElementById(id);
+  let model = null; // { items:[판정 항목 이름], rows:[...] }
+  const choices = {}; // 지원자 키 -> { pass, interview } (화면 안에서만)
+
+  function parseCSV(text) {
+    text = text.replace(/^﻿/, '');
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+        else cell += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += c;
+    }
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.some(x => x.trim() !== ''));
+  }
+
+  function showError(msg) { const e = $('err'); e.textContent = msg; e.classList.toggle('hidden', !msg); }
+
+  function build(text) {
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error('표에 지원자 줄이 없습니다.');
+    const head = rows[0].map(h => h.trim());
+    const idx = (name) => head.indexOf(name);
+    const need = ['지원자 ID', '기준 충족 개수', '기준 충족 여부'];
+    const miss = need.filter(n => idx(n) < 0);
+    if (miss.length) throw new Error('결과표 형식이 아닙니다. 없는 칸: ' + miss.join(', '));
+    const items = head.filter(h => h.endsWith(' 판정')).map(h => h.slice(0, -3));
+    if (!items.length) throw new Error('항목별 판정 칸(「○○ 판정」)이 없습니다.');
+    const get = (r, name) => { const i = idx(name); return i < 0 ? '' : (r[i] || '').trim(); };
+    const out = rows.slice(1).map((r, n) => {
+      const cnt = get(r, '기준 충족 개수');
+      const m = cnt.match(/^(\d+)\s*\/\s*(\d+)/);
+      const failText = get(r, '읽기 실패 여부');
+      return {
+        key: get(r, '지원자 ID') + '#' + n,
+        id: get(r, '지원자 ID'),
+        job: get(r, '직무'),
+        judge: items.map(it => ({ v: get(r, it + ' 판정'), why: get(r, it + ' 근거') })),
+        count: m ? +m[1] : null, total: m ? +m[2] : null, countText: cnt,
+        met: get(r, '기준 충족 여부'),
+        link: get(r, '링크 확인 상태'),
+        fail: failText,
+        pass0: get(r, '서류 합격/불합격'), int0: get(r, '면접 대상'),
+      };
+    });
+    return { items, rows: out };
+  }
+
+  function badge(v) {
+    const s = document.createElement('span');
+    s.className = 'badge ' + ({ '충족': 'b-ok', '부분 충족': 'b-part', '미충족': 'b-no' }[v] || 'b-none');
+    s.textContent = v || '—';
+    return s;
+  }
+
+  function select(opts, cur, onchange) {
+    const s = document.createElement('select');
+    opts.forEach(o => { const op = document.createElement('option'); op.value = o; op.textContent = o || '(비어 있음)'; s.appendChild(op); });
+    s.value = cur; s.onchange = () => onchange(s.value);
+    return s;
+  }
+
+  function render() {
+    if (!model) return;
+    const rankOn = $('rankOn').checked;
+    $('rankNote').classList.toggle('hidden', !rankOn);
+    let rows = model.rows.slice();
+    const ranks = new Map();
+    if (rankOn) {
+      const ok = rows.filter(r => !r.fail && r.count !== null).sort((a, b) => b.count - a.count);
+      ok.forEach((r, i) => ranks.set(r.key, i > 0 && ok[i - 1].count === r.count ? ranks.get(ok[i - 1].key) : i + 1));
+      rows.sort((a, b) => (ranks.has(a.key) ? 0 : 1) - (ranks.has(b.key) ? 0 : 1) || (ranks.get(a.key) || 0) - (ranks.get(b.key) || 0));
+    }
+    // 요약
+    const n = rows.length, f = rows.filter(r => r.fail).length;
+    const lk = rows.filter(r => r.link === '링크 확인 못 함').length;
+    const met = rows.filter(r => !r.fail && r.met === '충족').length;
+    const st = $('stats'); st.textContent = '';
+    [['전체 지원자', n], ['읽기 실패', f], ['링크 확인 못 함', lk], ['기준 충족(표시)', met]].forEach(([k, v]) => {
+      const d = document.createElement('div'); d.className = 'stat';
+      const b = document.createElement('b'); b.textContent = v + '명';
+      d.appendChild(b); d.appendChild(document.createTextNode(k)); st.appendChild(d);
+    });
+    // 표
+    const t = $('tbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow();
+    const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID', '직무'], model.items, ['충족 개수', '기준 충족 여부', '링크', '서류 합격/불합격', '면접 대상']);
+    heads.forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
+    const tb = t.createTBody();
+    rows.forEach(r => {
+      const tr = tb.insertRow(); if (r.fail) tr.className = 'fail';
+      const add = (txt) => { const td = tr.insertCell(); if (txt !== undefined) td.textContent = txt; return td; };
+      if (rankOn) { const td = add(r.fail ? '—' : (ranks.get(r.key) ?? '—')); td.className = 'rank'; }
+      add(r.id); add(r.job || '—');
+      model.items.forEach((_, i) => {
+        const td = tr.insertCell();
+        if (r.fail) { td.textContent = '—'; return; }
+        td.appendChild(badge(r.judge[i].v));
+        if (r.judge[i].why) { const w = document.createElement('span'); w.className = 'why'; w.textContent = r.judge[i].why; td.appendChild(w); }
+      });
+      if (r.fail) { const td = tr.insertCell(); td.colSpan = 2; td.textContent = r.fail; }
+      else { add(r.countText || '—'); const td = tr.insertCell(); td.appendChild(badge(r.met === '충족' ? '충족' : (r.met || '—'))); }
+      add(r.link || '—');
+      const c = choices[r.key] || (choices[r.key] = { pass: r.pass0, interview: r.int0 });
+      tr.insertCell().appendChild(select(['', '합격', '불합격'], c.pass, v => { c.pass = v; }));
+      tr.insertCell().appendChild(select(['', '면접 대상'], c.interview, v => { c.interview = v; }));
+    });
+  }
+
+  function loadCsvText(text) {
+    try {
+      model = build(text);
+      Object.keys(choices).forEach(k => delete choices[k]);
+      showError('');
+      $('result').classList.remove('hidden');
+      render();
+    } catch (e) {
+      model = null; $('result').classList.add('hidden'); showError(e.message);
+    }
+  }
+
+  function readFile(file) {
+    if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => loadCsvText(String(rd.result));
+    rd.onerror = () => showError('파일을 읽지 못했습니다.');
+    rd.readAsText(file, 'utf-8');
+  }
+
+  $('file').onchange = (e) => readFile(e.target.files[0]);
+  $('rankOn').onchange = render;
+  $('sample').onclick = async () => {
+    try { const r = await fetch('sample.csv'); if (!r.ok) throw 0; loadCsvText(await r.text()); }
+    catch { showError('가상 예시를 불러오지 못했습니다.'); }
+  };
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', (e) => readFile(e.dataTransfer.files[0]));
+</script>
 </body>
 </html>
