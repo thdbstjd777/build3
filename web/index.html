@@ -114,6 +114,8 @@
   <div class="tabs" role="tablist" aria-label="화면 선택">
     <button type="button" class="tab on" id="tabView" role="tab" aria-selected="true" aria-controls="paneView">결과표 보기</button>
     <button type="button" class="tab" id="tabJobs" role="tab" aria-selected="false" aria-controls="paneJobs">직무 · 서류 합격 기준</button>
+    <button type="button" class="tab" id="tabPass" role="tab" aria-selected="false" aria-controls="panePass">합격자 · 팀장 메일</button>
+    <button type="button" class="tab" id="tabIv" role="tab" aria-selected="false" aria-controls="paneIv">면접 질문지 · 평가표</button>
   </div>
 
   <!-- ===== 직무 · 기준 ===== -->
@@ -233,6 +235,82 @@
         <span class="muted">합격/불합격에서 고른 값이 「서류 합격/불합격」 칸에 채워진 결과표.csv 가 내려받아집니다. 새로고침하면 고른 값이 사라지니 먼저 내려받으세요.</span>
       </div>
       <div class="wrap"><table id="tbl"></table></div>
+    </div>
+  </section>
+  <!-- ===== 합격자 · 팀장 메일 ===== -->
+  <section id="panePass" class="hidden" role="tabpanel" aria-labelledby="tabPass">
+    <div class="card" style="margin-top:12px">
+      <h2>서류 합격자 리스트 · 팀장 메일 초안</h2>
+      <p class="muted">「결과표 보기」에서 사람이 「합격」으로 고른 지원자만 모읍니다. 이 화면은 합격/불합격을 정하지 않고 메일도 보내지 않습니다. 메일 앱이 열리면 담당자가 확인한 뒤 직접 보냅니다.</p>
+      <p class="muted" id="passEmpty">먼저 「결과표 보기」에서 결과표를 불러오고 서류 합격/불합격을 고르세요.</p>
+      <div id="passBody" class="hidden">
+        <label>직무 <select id="passJob"></select></label>
+        <div class="stats" id="passStats"></div>
+        <div class="banner hidden" id="passWarn"></div>
+        <div class="wrap"><table class="small" id="passTbl"></table></div>
+        <h2 style="margin-top:16px">팀장 메일 초안</h2>
+        <div class="mailgrid">
+          <label for="pHead">팀장님 이름</label><input type="text" id="pHead" maxlength="40" placeholder="예: 김OO">
+          <label for="pTo">팀장님 이메일</label><input type="text" id="pTo" maxlength="80" placeholder="예: lead@example.com (가상 값)">
+          <label for="pStaff">담당자 이름</label><input type="text" id="pStaff" maxlength="40">
+          <label for="pTel">담당자 연락처</label><input type="text" id="pTel" maxlength="40">
+          <label for="pNote">추가 전달 사항</label><input type="text" id="pNote" maxlength="200">
+        </div>
+        <p class="mailwarn" id="pLeft"></p>
+        <textarea id="pMail" aria-label="팀장 메일 초안"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button type="button" id="pCsv">합격자 리스트 내려받기 (.csv)</button>
+          <button type="button" class="plain" id="pOpen">메일 앱 열기</button>
+          <button type="button" class="plain" id="pCopy">메일 내용 복사</button>
+          <span class="muted" id="pMsg"></span>
+        </div>
+        <p class="muted">초안 · 이 도구는 메일을 보내지 않습니다. 합격자 리스트 CSV는 메일 앱에서 담당자가 직접 첨부합니다. [입력 필요]는 담당자가 채울 칸입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 면접 질문지 · 평가표 ===== -->
+  <section id="paneIv" class="hidden" role="tabpanel" aria-labelledby="tabIv">
+    <div class="card" style="margin-top:12px">
+      <h2>면접 질문지 · 평가표</h2>
+      <p class="muted">클로드의 /면접-질문지 가 만든 질문지.csv 를 올리면 직무별 질문과 BEST/WORST 기준을 보고, 면접관이 매긴 점수를 적어 합계를 냅니다. 점수는 사람이 적은 값만 더하며 이 화면이 매기지 않습니다. 총점은 참고 자료이고 합격 · 채용은 담당자가 정합니다.</p>
+      <div class="drop" id="ivDrop">
+        <p>질문지.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
+        <div class="row" style="justify-content:center">
+          <label class="btn">파일 고르기<input type="file" id="ivFile" accept=".csv,text/csv"></label>
+          <button type="button" id="ivSample">가상 예시 불러오기</button>
+        </div>
+        <p class="err hidden" id="ivErr"></p>
+      </div>
+    </div>
+    <div id="ivBody" class="hidden">
+      <div class="card row">
+        <label>직무 <select id="ivJob"></select></label>
+        <label>점수 척도 <select id="ivScale"><option value="5">1~5점</option><option value="10">1~10점</option></select></label>
+        <span class="muted">점수는 이 화면 안에서만 유지되고 새로고침하면 사라집니다. 평가표 CSV로 내려받아 보관하세요.</span>
+      </div>
+      <div class="card">
+        <h2>질문지 (초안)</h2>
+        <div class="banner"><b>초안 · 사용할 질문은 담당자가 고른다.</b> 「채택」은 담당자가 직접 체크하며, 처음에는 모두 비어 있습니다.</div>
+        <div class="wrap"><table id="ivQTbl"></table></div>
+        <div class="row" style="margin-top:10px"><button type="button" class="plain" id="ivQCsv">질문지 내려받기 (채택 포함 .csv)</button></div>
+      </div>
+      <div class="card">
+        <h2>지원자별 평가표</h2>
+        <div class="row"><label>지원자 <select id="ivCand"></select></label></div>
+        <p class="muted hidden" id="ivNoCand">이 직무에는 지원자별 질문이 없어 평가표를 만들 지원자가 없습니다.</p>
+        <div id="ivScoreBox">
+          <div class="wrap"><table class="small" id="ivScoreTbl"></table></div>
+          <div class="wrap" style="max-width:360px"><table class="small" id="ivSumTbl"></table></div>
+          <div class="row" style="margin-top:10px"><button type="button" class="plain" id="ivCandCsv">이 지원자 평가표 내려받기 (.csv)</button></div>
+          <p class="muted">총점은 참고 자료입니다. 총점이 높다고 자동으로 합격 · 채용으로 이어지지 않으며, 점수가 비어 있으면 0점으로 계산하지 않고 「면접 전」으로 둡니다.</p>
+        </div>
+      </div>
+      <div class="card">
+        <h2>직무 전체 총점 요약</h2>
+        <div class="wrap"><table class="small" id="ivAllTbl"></table></div>
+        <div class="row" style="margin-top:10px"><button type="button" class="plain" id="ivAllCsv">총점 요약 내려받기 (.csv)</button></div>
+      </div>
     </div>
   </section>
 </main>
@@ -664,16 +742,18 @@
 
   // ===== 탭 =====
   function showTab(name) {
-    $('paneJobs').classList.toggle('hidden', name !== 'jobs');
-    $('paneView').classList.toggle('hidden', name !== 'view');
-    $('tabJobs').classList.toggle('on', name === 'jobs');
-    $('tabView').classList.toggle('on', name === 'view');
-    $('tabJobs').setAttribute('aria-selected', String(name === 'jobs'));
-    $('tabView').setAttribute('aria-selected', String(name === 'view'));
+    [['jobs', 'Jobs'], ['view', 'View'], ['pass', 'Pass'], ['iv', 'Iv']].forEach(([k, id]) => {
+      $('pane' + id).classList.toggle('hidden', name !== k);
+      $('tab' + id).classList.toggle('on', name === k);
+      $('tab' + id).setAttribute('aria-selected', String(name === k));
+    });
     if (name === 'view') renderJobFilter();
+    if (name === 'pass') renderPass();
   }
   $('tabJobs').onclick = () => showTab('jobs');
   $('tabView').onclick = () => showTab('view');
+  $('tabPass').onclick = () => showTab('pass');
+  $('tabIv').onclick = () => showTab('iv');
 
   // ===== 결과표 보기 (기능 6) =====
   let model = null; // { items:[판정 항목 이름], rows:[...] }
@@ -1018,6 +1098,259 @@ ${co} 드림`;
 
   // 시작
   loadJobs(); if (jobs[0]) selected = jobs[0].id; saveJobs(); renderJobs();
+
+  // ===== 합격자 리스트 · 팀장 메일 초안 (보내지 않고 메일 앱만 연다) =====
+  const mk = (tag, txt, cls) => { const e = document.createElement(tag); if (txt !== undefined) e.textContent = txt; if (cls) e.className = cls; return e; };
+  const NEED = '[입력 필요]';
+  const passOf = (r) => (choices[r.key] ? choices[r.key].pass : r.pass0) || '';
+  let passJob = '';
+
+  function passScope() {
+    if (!model) return null;
+    const rows = model.rows.filter(r => !passJob || r.job === passJob);
+    const ok = rows.filter(r => !r.fail);
+    return {
+      rows,
+      pass: ok.filter(r => passOf(r) === '합격'),
+      no: ok.filter(r => passOf(r) === '불합격'),
+      undecided: ok.filter(r => passOf(r) === ''),
+      unknown: ok.filter(r => !['', '합격', '불합격'].includes(passOf(r))),
+      failed: rows.filter(r => r.fail),
+    };
+  }
+
+  function passMailText(sc) {
+    const v = (id) => $(id).value.trim();
+    const jobLabel = passJob || '전체 직무';
+    const lines = [
+      `제목: [서류전형] ${jobLabel} 합격자 리스트 전달 (${sc.pass.length}명)`, '',
+      `${v('pHead') || NEED} 팀장님께,`, '',
+      `안녕하세요. 인사 담당 ${v('pStaff') || NEED}입니다.`, '',
+      `${jobLabel} 서류전형 평가가 끝나 합격자 리스트를 전달드립니다.`,
+      `합격 ${sc.pass.length}명입니다. 합격 여부는 평가 위원과 담당자가 서류를 검토해 직접 정했습니다.`, '',
+    ];
+    sc.pass.forEach((r, i) => lines.push(`${i + 1}. ${r.id} · ${r.job || '—'} · 기준 충족 ${r.countText || '—'}`));
+    lines.push('', '지원자별 항목 판정과 근거가 필요하시면 말씀해 주세요.');
+    if (v('pNote')) lines.push(v('pNote'));
+    lines.push('', '감사합니다.', `${v('pStaff') || NEED} 드림`, `연락처: ${v('pTel') || NEED}`);
+    return lines.join('\n');
+  }
+
+  function renderPass() {
+    const has = !!model;
+    $('passEmpty').classList.toggle('hidden', has);
+    $('passBody').classList.toggle('hidden', !has);
+    if (!has) return;
+    const sel = $('passJob');
+    const names = [...new Set(model.rows.map(r => r.job).filter(Boolean))];
+    sel.textContent = '';
+    const all = mk('option', '전체 직무'); all.value = ''; sel.appendChild(all);
+    names.forEach(n => { const o = mk('option', n); o.value = n; sel.appendChild(o); });
+    sel.value = names.includes(passJob) ? passJob : ''; passJob = sel.value;
+    renderPassBody();
+  }
+
+  function renderPassBody() {
+    const sc = passScope(); if (!sc) return;
+    const st = $('passStats'); st.textContent = '';
+    [['합격', sc.pass.length], ['불합격', sc.no.length], ['미결정', sc.undecided.length], ['제외(읽기 실패)', sc.failed.length]].forEach(([k, n]) => {
+      const d = mk('div', undefined, 'stat'); d.appendChild(mk('b', n + '명')); d.appendChild(document.createTextNode(k)); st.appendChild(d);
+    });
+    const w = $('passWarn'); w.textContent = '';
+    const msgs = [];
+    if (sc.undecided.length) msgs.push(`아직 합격/불합격이 비어 있는 지원자 ${sc.undecided.length}명 (${sc.undecided.map(r => r.id).join(', ')})이 있습니다. 결정이 끝난 뒤 보내세요. 미결정은 합격으로 세지 않습니다.`);
+    if (sc.unknown.length) msgs.push(`알 수 없는 값이 있는 지원자: ${sc.unknown.map(r => r.id).join(', ')} (합격으로 세지 않음)`);
+    if (sc.failed.length) msgs.push(`제외 (읽기 실패): ${sc.failed.map(r => `${r.id} — ${r.fail}`).join(' / ')}`);
+    if (!sc.pass.length) msgs.push('합격으로 채워진 지원자가 없습니다. 「결과표 보기」에서 서류 합격/불합격을 고른 뒤 오세요.');
+    msgs.forEach(m => w.appendChild(mk('div', m)));
+    w.classList.toggle('hidden', !msgs.length);
+
+    const t = $('passTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow();
+    ['번호', '지원자 ID', '직무', '기준 충족 개수', '기준 충족 여부', '링크 확인 상태'].forEach(h => hr.appendChild(mk('th', h)));
+    const tb = t.createTBody();
+    sc.pass.forEach((r, i) => { const tr = tb.insertRow(); [i + 1, r.id, r.job || '—', r.countText || '—', r.met || '—', r.link || '—'].forEach(x => { tr.insertCell().textContent = x; }); });
+
+    const text = passMailText(sc);
+    $('pMail').value = text;
+    const left = (text.match(/\[입력 필요\]/g) || []).length + (/받는 사람/.test(text) ? 0 : 0);
+    $('pLeft').textContent = `남은 ${NEED} ${left}칸 · 보낸 메일 0통. 지어낸 값은 없습니다.`;
+    $('pLeft').classList.toggle('hidden', false);
+    $('pCsv').disabled = !sc.pass.length; $('pOpen').disabled = !sc.pass.length; $('pCopy').disabled = !sc.pass.length;
+  }
+
+  const pMsg = (t) => { $('pMsg').textContent = t || ''; };
+  $('passJob').onchange = (e) => { passJob = e.target.value; renderPassBody(); };
+  ['pHead', 'pTo', 'pStaff', 'pTel', 'pNote'].forEach(id => $(id).oninput = renderPassBody);
+  $('pCsv').onclick = () => {
+    const sc = passScope(); if (!sc || !sc.pass.length) return;
+    const lines = [['번호', '지원자 ID', '직무', '기준 충족 개수', '기준 충족 여부', '링크 확인 상태']];
+    sc.pass.forEach((r, i) => lines.push([i + 1, r.id, r.job, r.countText, r.met, r.link]));
+    download('합격자_리스트.csv', '﻿' + lines.map(l => l.map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv');
+  };
+  $('pCopy').onclick = async () => {
+    try { await navigator.clipboard.writeText($('pMail').value); pMsg('복사했습니다.'); } catch { $('pMail').select(); pMsg('복사하지 못했습니다. 직접 선택해 복사하세요.'); }
+  };
+  $('pOpen').onclick = () => {
+    const text = $('pMail').value;
+    const subject = (text.match(/^제목: (.*)$/m) || [, ''])[1];
+    const body = text.replace(/^제목: .*\n\n?/, '');
+    const to = $('pTo').value.trim();
+    const okTo = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(to) ? to : '';
+    let url = `mailto:${okTo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    if (url.length > 1800) { url = `mailto:${okTo}?subject=${encodeURIComponent(subject)}`; pMsg('본문이 길어 제목만 열었습니다. 「메일 내용 복사」로 붙여넣으세요.'); }
+    else pMsg('메일 앱을 열었습니다 (보내기는 메일 앱에서).');
+    location.href = url;
+  };
+
+  // ===== 면접 질문지 · 평가표 =====
+  let iv = null; // { rows:[{no,cat,job,id,q,why,rubric,adopt}] }
+  const scores = {}; // `${직무}|${지원자}|${번호}` -> 숫자 (화면 안에서만)
+  const IV_COLS = ['번호', '구분', '직무', '지원자 ID', '질문', '질문의 근거', 'BEST/WORST 기준'];
+  const CATS = ['전사 공통', '직무 공통', '지원자별'];
+  let ivJob = '', ivCand = '';
+  const ivErr = (m) => { const e = $('ivErr'); e.textContent = m; e.classList.toggle('hidden', !m); };
+
+  function loadIv(text) {
+    try {
+      const rows = parseCSV(text);
+      if (rows.length < 2) throw new Error('질문이 없습니다.');
+      const head = rows[0].map(h => h.trim());
+      const miss = IV_COLS.filter(c => head.indexOf(c) < 0);
+      if (miss.length) throw new Error('질문지 형식이 아닙니다. 없는 칸: ' + miss.join(', '));
+      const g = (r, c) => { const i = head.indexOf(c); return i < 0 ? '' : (r[i] || '').trim(); };
+      const out = rows.slice(1).map(r => ({ no: g(r, '번호'), cat: g(r, '구분'), job: g(r, '직무'), id: g(r, '지원자 ID'), q: g(r, '질문'), why: g(r, '질문의 근거'), rubric: g(r, 'BEST/WORST 기준'), adopt: g(r, '채택') === '채택' }))
+        .filter(r => CATS.includes(r.cat) && r.q);
+      if (!out.length) throw new Error('읽을 수 있는 질문이 없습니다.');
+      iv = { rows: out }; Object.keys(scores).forEach(k => delete scores[k]);
+      ivJob = ''; ivCand = ''; ivErr('');
+      $('ivBody').classList.remove('hidden');
+      renderIv();
+    } catch (e) { iv = null; $('ivBody').classList.add('hidden'); ivErr(e.message); }
+  }
+
+  const ivJobs = () => [...new Set(iv.rows.filter(r => r.cat !== '전사 공통').map(r => r.job).filter(Boolean))];
+  const ivCands = () => [...new Set(iv.rows.filter(r => r.cat === '지원자별' && r.job === ivJob).map(r => r.id))];
+  const ivQs = (cand) => iv.rows.filter(r => r.cat === '전사 공통' || (r.job === ivJob && (r.cat === '직무 공통' || (r.cat === '지원자별' && r.id === cand))));
+  const skey = (cand, q) => `${ivJob}|${cand}|${q.no}`;
+  const scaleMax = () => Number($('ivScale').value);
+
+  function sumText(list, cand) {
+    if (!list.length) return '—';
+    let sum = 0, blank = 0;
+    list.forEach(q => { const v = scores[skey(cand, q)]; if (v === undefined) blank++; else sum += v; });
+    if (blank === list.length) return '면접 전';
+    if (blank) return `일부 비어 있음 · ${blank}개 미기입`;
+    return String(sum);
+  }
+  const sumsOf = (cand) => {
+    const qs = ivQs(cand);
+    return CATS.map(c => [c + ' 합계', sumText(qs.filter(q => q.cat === c), cand)]).concat([['총점', sumText(qs, cand)]]);
+  };
+
+  function renderIv() {
+    if (!iv) return;
+    const jobs = ivJobs();
+    const js = $('ivJob'); js.textContent = '';
+    jobs.forEach(n => { const o = mk('option', n); o.value = n; js.appendChild(o); });
+    if (!jobs.includes(ivJob)) ivJob = jobs[0] || '';
+    js.value = ivJob;
+    renderIvQ(); renderIvCand();
+  }
+
+  function renderIvQ() {
+    const t = $('ivQTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow();
+    ['번호', '구분', '지원자 ID', '질문', '질문의 근거', 'BEST/WORST 기준', '채택'].forEach(h => hr.appendChild(mk('th', h)));
+    const tb = t.createTBody();
+    iv.rows.filter(r => r.cat === '전사 공통' || r.job === ivJob).forEach(r => {
+      const tr = tb.insertRow();
+      [r.no, r.cat, r.id || '전체', r.q, r.why || '-', r.rubric].forEach(x => { tr.insertCell().textContent = x; });
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = r.adopt; cb.setAttribute('aria-label', `${r.no}번 질문 채택`);
+      cb.onchange = () => { r.adopt = cb.checked; };
+      tr.insertCell().appendChild(cb);
+    });
+  }
+
+  function renderIvCand() {
+    const cs = ivCands(); const sel = $('ivCand'); sel.textContent = '';
+    cs.forEach(c => { const o = mk('option', c); o.value = c; sel.appendChild(o); });
+    if (!cs.includes(ivCand)) ivCand = cs[0] || '';
+    sel.value = ivCand;
+    $('ivNoCand').classList.toggle('hidden', cs.length > 0);
+    $('ivScoreBox').classList.toggle('hidden', !cs.length);
+    renderIvScore(); renderIvAll();
+  }
+
+  function renderIvScore() {
+    if (!ivCand) return;
+    const t = $('ivScoreTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow();
+    ['번호', '구분', '질문', `점수(1~${scaleMax()})`].forEach(h => hr.appendChild(mk('th', h)));
+    const tb = t.createTBody();
+    ivQs(ivCand).forEach(q => {
+      const tr = tb.insertRow();
+      [q.no, q.cat, q.q].forEach(x => { tr.insertCell().textContent = x; });
+      const inp = document.createElement('input'); inp.type = 'number'; inp.min = 1; inp.max = scaleMax(); inp.step = 1;
+      inp.setAttribute('aria-label', `${ivCand} ${q.no}번 점수`);
+      const cur0 = scores[skey(ivCand, q)]; inp.value = cur0 === undefined ? '' : cur0;
+      inp.oninput = () => {
+        const raw = inp.value.trim(); const n = Number(raw);
+        if (raw === '') delete scores[skey(ivCand, q)];
+        else if (Number.isInteger(n) && n >= 1 && n <= scaleMax()) scores[skey(ivCand, q)] = n;
+        else { delete scores[skey(ivCand, q)]; }
+        inp.style.borderColor = raw !== '' && !(Number.isInteger(n) && n >= 1 && n <= scaleMax()) ? 'var(--no-fg)' : '';
+        renderIvSums(); renderIvAll();
+      };
+      tr.insertCell().appendChild(inp);
+    });
+    renderIvSums();
+  }
+
+  function renderIvSums() {
+    const t = $('ivSumTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow(); ['구분', '합계'].forEach(h => hr.appendChild(mk('th', h)));
+    const tb = t.createTBody();
+    sumsOf(ivCand).forEach(([k, v]) => { const tr = tb.insertRow(); tr.insertCell().textContent = k; const td = tr.insertCell(); td.textContent = v; if (k === '총점') { tr.style.fontWeight = '700'; } });
+  }
+
+  function renderIvAll() {
+    const t = $('ivAllTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow(); ['지원자 ID', '전사 공통 합계', '직무 공통 합계', '지원자별 합계', '총점'].forEach(h => hr.appendChild(mk('th', h)));
+    const tb = t.createTBody();
+    ivCands().forEach(c => { const tr = tb.insertRow(); tr.insertCell().textContent = c; sumsOf(c).forEach(([, v]) => { tr.insertCell().textContent = v; }); });
+  }
+
+  const bom = '﻿';
+  function ivCandCsv() {
+    const qs = ivQs(ivCand); const m = scaleMax();
+    const lines = [[`척도: 1~${m}점`], ['번호', '구분', '질문', `점수(1~${m})`]];
+    qs.forEach(q => lines.push([q.no, q.cat, q.q, scores[skey(ivCand, q)] === undefined ? '' : scores[skey(ivCand, q)]]));
+    lines.push([]); lines.push(['구분', '합계']);
+    sumsOf(ivCand).forEach(l => lines.push(l));
+    download(`평가표_${safeName(ivCand)}.csv`, bom + lines.map(l => l.map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv');
+  }
+  function ivAllCsv() {
+    const lines = [[`직무: ${ivJob} · 척도: 1~${scaleMax()}점`], ['지원자 ID', '전사 공통 합계', '직무 공통 합계', '지원자별 합계', '총점']];
+    ivCands().forEach(c => lines.push([c].concat(sumsOf(c).map(x => x[1]))));
+    download('평가표_요약.csv', bom + lines.map(l => l.map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv');
+  }
+  function ivQCsv() {
+    const lines = [['번호', '구분', '직무', '지원자 ID', '질문', '질문의 근거', 'BEST/WORST 기준', '채택']];
+    iv.rows.forEach(r => lines.push([r.no, r.cat, r.job, r.id, r.q, r.why, r.rubric, r.adopt ? '채택' : '']));
+    download('질문지.csv', bom + lines.map(l => l.map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv');
+  }
+
+  $('ivJob').onchange = (e) => { ivJob = e.target.value; ivCand = ''; renderIvQ(); renderIvCand(); };
+  $('ivCand').onchange = (e) => { ivCand = e.target.value; renderIvScore(); };
+  $('ivScale').onchange = () => { Object.keys(scores).forEach(k => { if (scores[k] > scaleMax()) delete scores[k]; }); renderIvScore(); renderIvAll(); };
+  $('ivCandCsv').onclick = ivCandCsv; $('ivAllCsv').onclick = ivAllCsv; $('ivQCsv').onclick = ivQCsv;
+  $('ivFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => loadIv(String(rd.result)); rd.onerror = () => ivErr('파일을 읽지 못했습니다.'); rd.readAsText(f, 'utf-8'); e.target.value = ''; };
+  $('ivSample').onclick = async () => { try { const r = await fetch('sample-questions.csv'); if (!r.ok) throw 0; loadIv(await r.text()); } catch { ivErr('가상 예시를 불러오지 못했습니다.'); } };
+  const ivDrop = $('ivDrop');
+  ['dragenter', 'dragover'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.remove('over'); }));
+  ivDrop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => loadIv(String(rd.result)); rd.readAsText(f, 'utf-8'); });
 </script>
 </body>
 </html>
