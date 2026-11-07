@@ -273,9 +273,15 @@
   <section id="paneIv" class="hidden" role="tabpanel" aria-labelledby="tabIv">
     <div class="card" style="margin-top:12px">
       <h2>면접 질문지 · 평가표</h2>
-      <p class="muted">클로드의 /면접-질문지 가 만든 질문지.csv 를 올리면 직무별 질문과 BEST/WORST 기준을 보고, 면접관이 매긴 점수를 적어 합계를 냅니다. 점수는 사람이 적은 값만 더하며 이 화면이 매기지 않습니다. 총점은 참고 자료이고 합격 · 채용은 담당자가 정합니다.</p>
+      <p class="muted">「결과표 보기」에서 서류 합격으로 고른 지원자의 직무 · 평가 항목을 읽어 AI가 질문지를 바로 만듭니다. 면접관이 점수를 적으면 합계를 냅니다. 점수는 사람이 적은 값만 더하며 이 화면이 매기지 않고, 질문도 입력된 자료에서만 만들며 합격 · 채용은 담당자가 정합니다.</p>
+      <div class="row" style="margin:10px 0">
+        <button type="button" id="ivAuto">서류 합격자로 자동 만들기</button>
+        <input type="text" id="ivCode" class="hidden" maxlength="40" placeholder="접속 코드">
+        <span class="muted" id="ivAutoMsg"></span>
+      </div>
+      <p class="muted" id="ivAutoHint"></p>
       <div class="drop" id="ivDrop">
-        <p>질문지.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
+        <p>또는 질문지.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
         <div class="row" style="justify-content:center">
           <label class="btn">파일 고르기<input type="file" id="ivFile" accept=".csv,text/csv"></label>
           <button type="button" id="ivSample">가상 예시 불러오기</button>
@@ -747,6 +753,7 @@
     });
     if (name === 'view') renderJobFilter();
     if (name === 'pass') renderPass();
+    if (name === 'iv') checkIvReady();
   }
   $('tabJobs').onclick = () => showTab('jobs');
   $('tabView').onclick = () => showTab('view');
@@ -1211,6 +1218,62 @@ ${co} 드림`;
   let ivJob = '', ivCand = '';
   const ivErr = (m) => { const e = $('ivErr'); e.textContent = m; e.classList.toggle('hidden', !m); };
 
+  // ---- 서류 합격자로 자동 만들기 ----
+  let ivReady = null; // null=확인 전, true/false
+  let ivBusy = false;
+  function ivAutoMsg(m, bad) { const e = $('ivAutoMsg'); if (!e) return; e.textContent = m || ''; e.style.color = bad ? 'var(--no-fg)' : ''; }
+
+  async function checkIvReady() {
+    if (ivReady !== null) return;
+    try {
+      const r = await fetch('/api/interview-questions'); const s = await r.json();
+      ivReady = !!s.ready;
+      if (s.needCode) $('ivCode').classList.remove('hidden');
+      $('ivAutoHint').textContent = ivReady ? '' : '이 배포에는 AI 키가 아직 등록되지 않아 자동 생성을 쓸 수 없습니다. 아래에서 질문지.csv를 직접 올리세요.';
+    } catch {
+      ivReady = false;
+      $('ivAutoHint').textContent = '자동 생성 서버에 연결할 수 없습니다 (배포된 주소에서만 동작합니다). 아래에서 질문지.csv를 직접 올리세요.';
+    }
+  }
+
+  function ivAutoJobs() {
+    if (!model) return null;
+    const byJob = new Map();
+    model.rows.forEach((r) => {
+      if (r.fail) return;
+      if (passOf(r) !== '합격') return;
+      const job = r.job || '(직무 없음)';
+      if (!byJob.has(job)) byJob.set(job, []);
+      byJob.get(job).push({ id: r.id, items: model.items.map((name, i) => ({ name, judge: r.judge[i].v, evidence: r.judge[i].why })) });
+    });
+    return [...byJob.entries()].map(([job, candidates]) => ({ job, candidates }));
+  }
+
+  async function runIvAuto() {
+    if (ivBusy) return;
+    if (!model) return ivAutoMsg('먼저 「결과표 보기」에서 결과표를 불러오세요.', true);
+    const jobs = ivAutoJobs();
+    if (!jobs || !jobs.length) return ivAutoMsg('서류 합격자가 없습니다. 「결과표 보기」에서 합격을 고른 뒤 다시 누르세요.', true);
+    ivBusy = true; const btn = $('ivAuto'); btn.disabled = true; ivAutoMsg('AI가 질문지를 만드는 중입니다… (최대 1분)');
+    const headers = { 'content-type': 'application/json' };
+    try { const c = $('ivCode').value || sessionStorage.getItem('jdCode'); if (c) headers['x-access-code'] = c; } catch {}
+    try {
+      const r = await fetch('/api/interview-questions', { method: 'POST', headers, body: JSON.stringify({ jobs }) });
+      let data = null; try { data = await r.json(); } catch {}
+      if (!data) throw new Error(r.status === 404 ? '자동 생성 기능이 이 주소에 배포되어 있지 않습니다.' : '서버에서 올바른 응답을 받지 못했습니다. 다시 시도해 주세요.');
+      if (!r.ok) { if (data.needCode) $('ivCode').classList.remove('hidden'); throw new Error(data.error || '만들지 못했습니다.'); }
+      try { if ($('ivCode').value) sessionStorage.setItem('jdCode', $('ivCode').value); } catch {}
+      if (!Array.isArray(data.rows) || !data.rows.length) throw new Error('AI가 질문을 만들지 못했습니다. 다시 시도해 주세요.');
+      iv = { rows: data.rows.map((row) => ({ ...row, adopt: false })) };
+      Object.keys(scores).forEach((k) => delete scores[k]);
+      ivJob = ''; ivCand = ''; ivErr('');
+      ivAutoMsg(`만들었습니다 (지원자 ${jobs.reduce((n, j) => n + j.candidates.length, 0)}명 · 직무 ${jobs.length}개). 아래에서 질문을 확인하세요.`);
+      $('ivBody').classList.remove('hidden');
+      renderIv();
+    } catch (e) { ivAutoMsg(e.message, true); }
+    finally { ivBusy = false; btn.disabled = false; }
+  }
+
   function loadIv(text) {
     try {
       const rows = parseCSV(text);
@@ -1347,6 +1410,7 @@ ${co} 드림`;
   $('ivCandCsv').onclick = ivCandCsv; $('ivAllCsv').onclick = ivAllCsv; $('ivQCsv').onclick = ivQCsv;
   $('ivFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => loadIv(String(rd.result)); rd.onerror = () => ivErr('파일을 읽지 못했습니다.'); rd.readAsText(f, 'utf-8'); e.target.value = ''; };
   $('ivSample').onclick = async () => { try { const r = await fetch('sample-questions.csv'); if (!r.ok) throw 0; loadIv(await r.text()); } catch { ivErr('가상 예시를 불러오지 못했습니다.'); } };
+  $('ivAuto').onclick = runIvAuto;
   const ivDrop = $('ivDrop');
   ['dragenter', 'dragover'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => ivDrop.addEventListener(ev, (e) => { e.preventDefault(); ivDrop.classList.remove('over'); }));
