@@ -116,6 +116,18 @@ function 주소뽑기(본문, 추가 = []) {
   return [...new Set([...찾음, ...추가])];
 }
 
+// 지원서 본문에서 연락처를 뽑는다. 처음 나온 값을 쓰고, 여러 개면 알린다(사람이 확인).
+function 연락처뽑기(본문) {
+  const 메일들 = [...new Set([...본문.matchAll(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+/g)].map((m) => m[0].replace(/[.,;:]+$/, '')))];
+  const 전화들 = [...new Set([...본문.matchAll(/(?<![\d-])0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}(?![\d-])/g)].map((m) => m[0].replace(/[.\s]/g, '-')))];
+  const 결과 = { 이메일: 메일들[0] || '', 전화번호: 전화들[0] || '' };
+  const 주의 = [];
+  if (메일들.length > 1) 주의.push(`이메일이 ${메일들.length}개 있음(${메일들.join(', ')}) — 첫 번째만 씀`);
+  if (전화들.length > 1) 주의.push(`전화번호가 ${전화들.length}개 있음(${전화들.join(', ')}) — 첫 번째만 씀`);
+  if (주의.length) 결과.연락처주의 = 주의;
+  return 결과;
+}
+
 // ---------- CSV (링크목록용 간단 파서) ----------
 function csv읽기(s) {
   const 줄들 = [];
@@ -197,11 +209,11 @@ for (const 파일 of 항목) {
     if (확장자 === '.docx') {
       const { 본문, 연결 } = 워드읽기(파일.읽기());
       if (!본문) throw new Error('본문이 비어 있음');
-      지원서.push({ ...기본, 상태: '읽음', 본문, 링크: 주소뽑기(본문, 연결).map(링크읽기) });
+      지원서.push({ ...기본, 상태: '읽음', 본문, ...연락처뽑기(본문), 링크: 주소뽑기(본문, 연결).map(링크읽기) });
     } else if (['.txt', '.md'].includes(확장자)) {
       const 본문 = 파일.읽기().toString('utf8').replace(/^﻿/, '').trim();
       if (!본문) throw new Error('본문이 비어 있음');
-      지원서.push({ ...기본, 상태: '읽음', 본문, 링크: 주소뽑기(본문).map(링크읽기) });
+      지원서.push({ ...기본, 상태: '읽음', 본문, ...연락처뽑기(본문), 링크: 주소뽑기(본문).map(링크읽기) });
     } else if (확장자 === '.pdf') {
       fs.mkdirSync(pdf폴더, { recursive: true });
       const 꺼낸곳 = path.join(pdf폴더, path.posix.basename(이름).replace(/[^\w.\-가-힣]/g, '_'));
