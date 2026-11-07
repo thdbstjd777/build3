@@ -125,12 +125,24 @@
           </div>
 
           <details class="jdbox" id="jdBox">
-            <summary>JD로 기준 초안 만들기 (경력 연차 · 자격증 · 보유지식 · 보유역량)</summary>
-            <p class="muted" style="margin-top:8px">채용공고(JD)를 글로 붙여넣거나, 링크 · PDF · 이미지로 넣으면 서류 요건을 네 구분으로 정리합니다. 결과는 「초안」으로만 들어가며, 고르고 고친 뒤 확정은 담당자가 합니다.</p>
+            <summary>JD로 기준 초안 만들기 (경력 연차 · 자격증 · 보유지식)</summary>
+            <p class="muted" style="margin-top:8px">채용공고(JD)를 글로 붙여넣거나, 링크 · PDF · 이미지로 넣으면 서류 요건을 세 구분으로 정리합니다. 결과는 「초안」으로만 들어가며, 고르고 고친 뒤 확정은 담당자가 합니다.</p>
             <div class="modes row">
               <label><input type="radio" name="jdMode" value="text" checked> 글 붙여넣기</label>
               <label><input type="radio" name="jdMode" value="url"> 링크</label>
               <label><input type="radio" name="jdMode" value="file"> PDF · 이미지</label>
+              <label><input type="radio" name="jdMode" value="manual"> 직접 입력</label>
+            </div>
+            <div id="jdInManual" class="hidden" style="margin-top:8px">
+              <p class="muted">JD 없이 세 구분별로 직접 적습니다. 비워 둔 구분은 넣지 않습니다.</p>
+              <div class="wrap" style="margin-top:6px"><table class="small" id="jdManualTbl">
+                <thead><tr><th>구분</th><th>필수 (자격 요건)</th><th>우대 사항</th></tr></thead>
+                <tbody>
+                  <tr><td>경력 연차</td><td><input type="text" maxlength="200" data-cat="경력 연차" data-k="required" placeholder="예: 관련 경력 3년 이상"></td><td><input type="text" maxlength="200" data-cat="경력 연차" data-k="preferred" placeholder="예: 유사 업종 경력"></td></tr>
+                  <tr><td>자격증</td><td><input type="text" maxlength="200" data-cat="자격증" data-k="required" placeholder="예: 사회복지사 2급"></td><td><input type="text" maxlength="200" data-cat="자격증" data-k="preferred" placeholder="예: 컴퓨터활용능력 1급"></td></tr>
+                  <tr><td>보유지식</td><td><input type="text" maxlength="200" data-cat="보유지식" data-k="required" placeholder="예: 복리후생 제도 이해, 엑셀"></td><td><input type="text" maxlength="200" data-cat="보유지식" data-k="preferred"></td></tr>
+                </tbody>
+              </table></div>
             </div>
             <div id="jdInText" style="margin-top:8px"><textarea id="jdText" maxlength="40000" placeholder="JD 내용을 여기에 붙여넣으세요 (담당 업무 · 자격 요건 · 우대 사항 포함)"></textarea></div>
             <div id="jdInUrl" class="hidden" style="margin-top:8px"><input type="text" id="jdUrl" placeholder="https://… 채용공고 주소"><p class="muted">로그인이 필요하거나 화면이 스크립트로 그려지는 페이지는 못 읽을 수 있습니다. 그때는 글 붙여넣기나 이미지를 쓰세요.</p></div>
@@ -188,7 +200,7 @@
       </div>
       <div id="reqBox" class="reqbox hidden"></div>
       <div class="stats" id="stats"></div>
-      <div class="banner" id="rankNote">참고용 순위 · 최종 결정은 담당자. 순위는 기준 충족 개수 순이며, 같은 개수는 같은 순위입니다. 합격/불합격과 면접 대상은 아래 칸에서 사람이 직접 고릅니다.</div>
+      <div class="banner" id="rankNote">참고용 순위 · 최종 결정은 담당자. 순위는 기준 충족 개수 순이며, 같은 개수는 같은 순위입니다. 합격/불합격은 아래 칸에서 사람이 직접 고릅니다.</div>
       <div class="wrap"><table id="tbl"></table></div>
     </div>
   </section>
@@ -391,6 +403,23 @@
     $('jdInText').classList.toggle('hidden', m !== 'text');
     $('jdInUrl').classList.toggle('hidden', m !== 'url');
     $('jdInFile').classList.toggle('hidden', m !== 'file');
+    $('jdInManual').classList.toggle('hidden', m !== 'manual');
+    $('jdRun').textContent = m === 'manual' ? '입력한 내용 미리보기' : 'JD 분석하기';
+  }
+
+  function runManual() {
+    const job = cur(); if (!job || job.status === '확정') return;
+    const by = {};
+    document.querySelectorAll('#jdManualTbl input').forEach(i => { (by[i.dataset.cat] = by[i.dataset.cat] || {})[i.dataset.k] = i.value.trim(); });
+    const bad = Object.values(by).map(v => badWordIn((v.required || '') + ' ' + (v.preferred || ''))).find(Boolean);
+    if (bad) return jdMsg(`직무와 무관한 요소(「${bad}」)는 기준에 쓰지 않습니다. 지우고 다시 눌러 주세요.`, true);
+    const rows = ['경력 연차', '자격증', '보유지식'].map(cat => {
+      const x = by[cat] || {}; const found = !!(x.required || x.preferred);
+      return { name: cat, cond: found ? condOf(x) : '', note: '직접 입력', found, on: found };
+    });
+    if (!rows.some(r => r.found)) return jdMsg('한 칸 이상 적어 주세요.', true);
+    jd = { jobId: job.id, summary: '', jobTitle: '', rows, excluded: [], warnings: [] };
+    jdMsg(''); renderJd();
   }
 
   function fileToB64(f) {
@@ -409,6 +438,7 @@
 
   async function runJd() {
     const job = cur(); if (!job || job.status === '확정') return;
+    if (jdMode() === 'manual') return runManual();
     const body = { mode: jdMode() };
     try {
       if (body.mode === 'text') {
@@ -469,7 +499,7 @@
       cb.onchange = () => { r.on = cb.checked; };
       tr.insertCell().appendChild(cb);
       tr.insertCell().textContent = r.name + (r.extra ? ' (기타)' : '');
-      const c = tr.insertCell(); c.className = 'cond'; c.textContent = r.found ? r.cond : 'JD에 명시되어 있지 않음';
+      const c = tr.insertCell(); c.className = 'cond'; c.textContent = r.found ? r.cond : (r.note === '직접 입력' ? '입력하지 않음' : 'JD에 명시되어 있지 않음');
       tr.insertCell().textContent = r.note.replace(/^JD 근거: /, '') || '—';
     });
     wrap.appendChild(t); box.appendChild(wrap);
@@ -538,7 +568,7 @@
   // ===== 결과표 보기 (기능 6) =====
   let model = null; // { items:[판정 항목 이름], rows:[...] }
   let jobFilter = ''; // '' = 전체
-  const choices = {}; // 지원자 키 -> { pass, interview } (화면 안에서만)
+  const choices = {}; // 지원자 키 -> { pass } (화면 안에서만)
 
   function parseCSV(text) {
     text = text.replace(/^﻿/, '');
@@ -581,7 +611,7 @@
         judge: items.map(it => ({ v: get(r, it + ' 판정'), why: get(r, it + ' 근거') })),
         count: m ? +m[1] : null, total: m ? +m[2] : null, countText: cnt,
         met: get(r, '기준 충족 여부'), link: get(r, '링크 확인 상태'), fail: get(r, '읽기 실패 여부'),
-        pass0: get(r, '서류 합격/불합격'), int0: get(r, '면접 대상'),
+        pass0: get(r, '서류 합격/불합격'),
       };
     });
     return { items, rows: out };
@@ -662,7 +692,7 @@
     });
     const t = $('tbl'); t.textContent = '';
     const hr = t.createTHead().insertRow();
-    const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID', '직무'], model.items, ['충족 개수', '기준 충족 여부', '링크', '서류 합격/불합격', '면접 대상']);
+    const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID', '직무'], model.items, ['충족 개수', '기준 충족 여부', '링크', '서류 합격/불합격']);
     heads.forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
     const tb = t.createTBody();
     rows.forEach(r => {
@@ -679,10 +709,8 @@
       if (r.fail) { const td = tr.insertCell(); td.colSpan = 2; td.textContent = r.fail; }
       else { add(r.countText || '—'); const td = tr.insertCell(); td.appendChild(badge(r.met === '충족' ? '충족' : (r.met || '—'))); }
       add(r.link || '—');
-      const c = choices[r.key] || (choices[r.key] = { pass: r.pass0, interview: r.int0 });
-      tr.insertCell().appendChild(select(['', '합격', '불합격'], c.pass, v => { c.pass = v; }));
-      tr.insertCell().appendChild(select(['', '면접 대상'], c.interview, v => { c.interview = v; }));
-    });
+      const c = choices[r.key] || (choices[r.key] = { pass: r.pass0 });
+      tr.insertCell().appendChild(select(['', '합격', '불합격'], c.pass, v => { c.pass = v; }));    });
   }
 
   function loadCsvText(text) {

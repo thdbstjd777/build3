@@ -1,10 +1,10 @@
-// JD(채용공고) 분석 — 글 · 링크 · PDF · 이미지에서 서류 요건(경력 연차 · 자격증 · 보유지식 · 보유역량)을 뽑는다.
+// JD(채용공고) 분석 — 글 · 링크 · PDF · 이미지에서 서류 요건(경력 연차 · 자격증 · 보유지식)을 뽑는다.
 // Vercel 함수. 환경 변수: ANTHROPIC_API_KEY (필수), ACCESS_CODE (선택: 있으면 같은 코드를 넣은 사람만 쓸 수 있다)
 const dns = require('node:dns').promises;
 const net = require('node:net');
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
-const CATEGORIES = ['경력 연차', '자격증', '보유지식', '보유역량'];
+const CATEGORIES = ['경력 연차', '자격증', '보유지식'];
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // Vercel 함수 요청 한도(4.5MB) 안에 base64로 들어가는 크기
 const MAX_TEXT = 40000;
 
@@ -18,7 +18,7 @@ const TOOL = {
       summary: { type: 'string', description: 'JD가 하는 일을 한두 문장으로 요약' },
       items: {
         type: 'array',
-        description: '경력 연차, 자격증, 보유지식, 보유역량 순서로 정확히 4개',
+        description: '경력 연차, 자격증, 보유지식 순서로 정확히 3개',
         items: {
           type: 'object',
           properties: {
@@ -33,7 +33,7 @@ const TOOL = {
       },
       extras: {
         type: 'array',
-        description: '네 구분에 들어가지 않지만 서류로 확인 가능한 요건(학력, 전공, 어학, 근무 형태 등). 없으면 빈 배열',
+        description: '세 구분에 들어가지 않지만 서류로 확인 가능한 요건(학력, 전공, 어학, 근무 형태 등). 없으면 빈 배열',
         items: {
           type: 'object',
           properties: {
@@ -66,11 +66,10 @@ const TOOL = {
 const SYSTEM = `당신은 채용 담당자를 돕는 JD(채용공고) 분석 도우미다. JD에서 "서류로 확인할 수 있는 요건"을 정리한다.
 
 규칙:
-- 아래 네 구분으로 정리한다.
+- 아래 세 구분으로 정리한다. 의사소통 · 협업 같은 역량(태도)은 서류 기준으로 삼지 않으므로 정리하지 않는다.
   1) 경력 연차: 요구 경력 기간(예: 3년 이상, 신입 가능)과 어떤 분야의 경력인지
   2) 자격증: 필수/우대 자격증 · 면허 이름
   3) 보유지식: 직무 분야 지식 · 기술 · 도구 · 법령 · 전공 지식
-  4) 보유역량: 업무 수행 방식과 태도(의사소통, 협업, 분석, 문제해결, 리더십 등)
 - JD에 적힌 내용만 쓴다. 없는 요건을 지어내지 않는다. 숫자(연차 등)는 JD에 적힌 그대로 쓰고, 적혀 있지 않으면 found=false로 두고 비워 둔다.
 - "필수/자격 요건"과 "우대 사항"을 구분해 required와 preferred에 나눠 담는다. 담당 업무(하는 일) 설명은 요건 근거로만 쓰고 요건처럼 늘려 쓰지 않는다.
 - 각 값은 한국어로, 한 칸에 한 줄(최대 200자)로 간결하게 쓴다. 여러 개면 쉼표로 잇는다.
