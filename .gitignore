@@ -1,6 +1,3 @@
 ﻿.env
 .env.*
 .claude/settings.local.json
-
-# 채용 폴더(지원서 · 직무별 조건)는 저장소에 올리지 않는다
-채용/

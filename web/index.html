@@ -21,23 +21,31 @@
   body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif; line-height:1.55; }
   main { max-width:1200px; margin:0 auto; padding:24px 16px 64px; }
   h1 { margin:0 0 4px; font-size:1.4rem; }
+  h2 { margin:0 0 8px; font-size:1.1rem; }
   p { margin:0 0 8px; }
   .muted { color:var(--muted); font-size:.92rem; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
   .banner { background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:10px; padding:10px 14px; margin-top:12px; font-size:.92rem; }
   .drop { border:2px dashed var(--line); border-radius:12px; padding:24px 16px; text-align:center; }
   .drop.over { border-color:var(--accent); }
-  button, select, label.btn { font:inherit; color:inherit; }
+  button, select, input, label.btn { font:inherit; color:inherit; }
   button, label.btn { display:inline-block; cursor:pointer; background:var(--card); border:1px solid var(--accent); color:var(--accent); border-radius:8px; padding:6px 14px; }
-  button:hover, label.btn:hover { background:var(--accent); color:var(--bg); }
+  button:hover:not(:disabled), label.btn:hover { background:var(--accent); color:var(--bg); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.plain { border-color:var(--line); color:var(--fg); }
+  button.danger { border-color:var(--no-fg); color:var(--no-fg); }
   input[type=file] { display:none; }
-  select { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:3px 6px; }
+  input[type=text], input[type=number], select { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:5px 8px; }
+  input[type=text] { width:100%; }
+  input[type=number] { width:80px; }
+  input:disabled { opacity:.7; background:var(--none-bg); }
   .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
   .stats { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
   .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px 14px; min-width:120px; }
   .stat b { display:block; font-size:1.3rem; }
   .wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; margin-top:12px; background:var(--card); }
   table { border-collapse:collapse; width:100%; min-width:900px; font-size:.9rem; }
+  table.small { min-width:0; }
   th, td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
   th { position:sticky; top:0; background:var(--card); font-weight:600; white-space:nowrap; }
   tr.fail td { color:var(--muted); background:var(--none-bg); }
@@ -50,58 +58,327 @@
   .rank { font-weight:700; text-align:center; }
   .err { color:var(--no-fg); margin-top:8px; }
   .hidden { display:none; }
+  .tabs { display:flex; gap:8px; margin-top:16px; border-bottom:1px solid var(--line); }
+  .tab { border:1px solid var(--line); border-bottom:none; border-radius:8px 8px 0 0; background:var(--card); color:var(--fg); padding:8px 18px; }
+  .tab.on { background:var(--accent); color:var(--bg); border-color:var(--accent); }
+  .grid { display:grid; grid-template-columns:260px 1fr; gap:16px; margin-top:16px; align-items:start; }
+  @media (max-width:760px) { .grid { grid-template-columns:1fr; } }
+  .joblist { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .jobbtn { text-align:left; border-color:var(--line); color:var(--fg); display:flex; justify-content:space-between; gap:8px; }
+  .jobbtn.on { border-color:var(--accent); background:var(--ok-bg); }
+  .reqbox { background:var(--ok-bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-top:12px; font-size:.92rem; }
+  .reqbox ul { margin:6px 0 0; padding-left:18px; }
+  .issues { margin:8px 0 0; padding-left:18px; color:var(--no-fg); font-size:.9rem; }
 </style>
 </head>
 <body>
 <main>
   <h1>채용 서류 검토 지원</h1>
-  <p class="muted">서류-정리가 만든 결과표(CSV)를 올리면 항목별 판정, 기준 충족 개수, 참고용 순위를 한 화면에서 봅니다.</p>
-  <div class="banner">가상 데이터만 올리세요. 올린 파일은 이 브라우저 안에서만 읽고 어디에도 저장하지 않습니다. 새로고침하면 모두 사라집니다.</div>
+  <p class="muted">직무를 등록하고 직무별 서류 합격 기준을 정한 뒤, 서류-정리가 만든 결과표(CSV)를 올려 항목별 판정과 참고용 순위를 봅니다.</p>
+  <div class="banner">가상 데이터만 사용하세요. 올린 결과표는 이 브라우저 안에서만 읽고 저장하지 않으며 새로고침하면 사라집니다. 직무와 기준은 이 브라우저에만 저장되고 서버로 보내지 않습니다.</div>
 
-  <div class="card">
-    <div class="drop" id="drop">
-      <p>결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
-      <div class="row" style="justify-content:center">
-        <label class="btn">파일 고르기<input type="file" id="file" accept=".csv,text/csv"></label>
-        <button type="button" id="sample">가상 예시 불러오기</button>
+  <div class="tabs">
+    <button type="button" class="tab on" id="tabView">결과표 보기</button>
+    <button type="button" class="tab" id="tabJobs">직무 · 서류 합격 기준</button>
+  </div>
+
+  <!-- ===== 직무 · 기준 ===== -->
+  <section id="paneJobs" class="hidden">
+    <div class="grid">
+      <div class="card" style="margin-top:0">
+        <h2>직무 등록</h2>
+        <div class="row">
+          <input type="text" id="newJob" maxlength="40" placeholder="직무 이름 (예: 복지 프로그램 운영 담당)">
+          <button type="button" id="addJob">등록</button>
+        </div>
+        <p class="err hidden" id="jobErr"></p>
+        <div class="joblist" id="jobList"></div>
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+        <p class="muted">직무와 기준 전체를 파일로 저장하거나 다른 사람 것을 불러올 수 있습니다.</p>
+        <div class="row">
+          <button type="button" class="plain" id="exportAll">전체 내려받기</button>
+          <label class="btn plain" style="border-color:var(--line);color:var(--fg)">불러오기<input type="file" id="importAll" accept=".json,application/json"></label>
+        </div>
+        <p class="muted hidden" id="storeNote"></p>
       </div>
-      <p class="err hidden" id="err"></p>
-    </div>
-  </div>
 
-  <div id="result" class="hidden">
-    <div class="stats" id="stats"></div>
-    <div class="card row" style="margin-top:12px">
-      <label><input type="checkbox" id="rankOn" checked> 참고용 순위 보기</label>
-      <span class="muted">끄면 순위 없이 항목별 표만 보입니다.</span>
+      <div class="card" style="margin-top:0" id="editor">
+        <p class="muted" id="emptyEditor">왼쪽에서 직무를 등록하거나 고르세요.</p>
+        <div id="editorBody" class="hidden">
+          <div class="row" style="justify-content:space-between">
+            <h2 id="jobTitle" style="margin:0"></h2>
+            <span class="badge" id="jobStatus"></span>
+          </div>
+          <p class="muted" style="margin-top:6px">서류 합격 기준 항목을 적고, 몇 개 이상 충족하면 「기준 충족」인지 정합니다. 도구는 충족 여부까지만 보여 주고 서류 합격/불합격은 사람이 정합니다.</p>
+
+          <div class="row" style="margin:10px 0">
+            <label>충족 기준 개수 <input type="number" id="needCount" min="1" step="1"></label>
+            <span class="muted" id="needHint"></span>
+          </div>
+
+          <div class="wrap" style="margin-top:0"><table class="small" id="itemTbl"></table></div>
+          <div class="row" style="margin-top:8px">
+            <button type="button" class="plain" id="addItem">항목 추가</button>
+          </div>
+
+          <ul class="issues hidden" id="issues"></ul>
+
+          <div class="row" style="margin-top:14px">
+            <button type="button" id="confirmBtn">확정</button>
+            <button type="button" class="plain hidden" id="reopenBtn">초안으로 되돌려 고치기</button>
+            <button type="button" class="plain" id="exportMd">기준 파일(.md) 내려받기</button>
+            <button type="button" class="danger" id="deleteJob">직무 삭제</button>
+          </div>
+          <p class="muted" style="margin-top:8px">확정은 담당자가 직접 누릅니다. 확정한 기준을 고치려면 초안으로 되돌려 고친 뒤 처음부터 다시 확정합니다. 내려받은 .md 파일은 클로드의 서류-정리에 그대로 넣을 수 있습니다.</p>
+        </div>
+      </div>
     </div>
-    <div class="banner" id="rankNote">참고용 순위 · 최종 결정은 담당자. 순위는 기준 충족 개수 순이며, 같은 개수는 같은 순위입니다. 합격/불합격과 면접 대상은 아래 칸에서 사람이 직접 고릅니다.</div>
-    <div class="wrap"><table id="tbl"></table></div>
-  </div>
+  </section>
+
+  <!-- ===== 결과표 보기 ===== -->
+  <section id="paneView">
+    <div class="card">
+      <div class="drop" id="drop">
+        <p>결과표.csv 를 여기에 끌어다 놓거나 파일을 고르세요.</p>
+        <div class="row" style="justify-content:center">
+          <label class="btn">파일 고르기<input type="file" id="file" accept=".csv,text/csv"></label>
+          <button type="button" id="sample">가상 예시 불러오기</button>
+        </div>
+        <p class="err hidden" id="err"></p>
+      </div>
+    </div>
+
+    <div id="result" class="hidden">
+      <div class="card row" style="margin-top:12px">
+        <label>직무
+          <select id="jobFilter"></select>
+        </label>
+        <label><input type="checkbox" id="rankOn" checked> 참고용 순위 보기</label>
+        <span class="muted">순위를 끄면 순위 없이 항목별 표만 보입니다.</span>
+      </div>
+      <div id="reqBox" class="reqbox hidden"></div>
+      <div class="stats" id="stats"></div>
+      <div class="banner" id="rankNote">참고용 순위 · 최종 결정은 담당자. 순위는 기준 충족 개수 순이며, 같은 개수는 같은 순위입니다. 합격/불합격과 면접 대상은 아래 칸에서 사람이 직접 고릅니다.</div>
+      <div class="wrap"><table id="tbl"></table></div>
+    </div>
+  </section>
 </main>
 
 <script>
-  // 결과표 웹 화면 (기능 6). 올린 파일은 브라우저 안에서만 읽고 저장하지 않는다.
   const $ = (id) => document.getElementById(id);
+  const BAD_WORDS = ['성별', '나이', '연령', '출신', '결혼', '혼인', '가족', '외모', '종교', '국적', '장애', '생년', '고향'];
+  const KEY = 'hr-resume-review.jobs.v1';
+
+  // ===== 직무 · 기준 (이 브라우저에만 저장) =====
+  let jobs = [];
+  let selected = null; // job id
+  let canStore = true;
+
+  function loadJobs() {
+    try { const raw = localStorage.getItem(KEY); jobs = raw ? JSON.parse(raw) : []; if (!Array.isArray(jobs)) jobs = []; }
+    catch { jobs = []; canStore = false; }
+  }
+  function saveJobs() {
+    try { localStorage.setItem(KEY, JSON.stringify(jobs)); } catch { canStore = false; }
+    const n = $('storeNote');
+    n.textContent = canStore ? '' : '이 브라우저가 저장을 막고 있어 새로고침하면 직무와 기준이 사라집니다. 「전체 내려받기」로 보관하세요.';
+    n.classList.toggle('hidden', canStore);
+  }
+  const uid = () => 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const cur = () => jobs.find(j => j.id === selected) || null;
+  function jobErr(msg) { const e = $('jobErr'); e.textContent = msg; e.classList.toggle('hidden', !msg); }
+
+  function addJob() {
+    const name = $('newJob').value.trim();
+    if (!name) return jobErr('직무 이름을 적어 주세요.');
+    if (jobs.some(j => j.name === name)) return jobErr('같은 이름의 직무가 이미 있습니다.');
+    const job = { id: uid(), name, count: '', status: '초안', items: [{ name: '', cond: '', note: '' }] };
+    jobs.push(job); selected = job.id; $('newJob').value = ''; jobErr('');
+    saveJobs(); renderJobs();
+  }
+
+  function badWordIn(text) { return BAD_WORDS.find(w => text.includes(w)); }
+
+  function issuesOf(job) {
+    const out = [];
+    if (!job.items.length) out.push('항목을 1개 이상 넣어 주세요.');
+    job.items.forEach((it, i) => {
+      if (!it.name.trim() || !it.cond.trim()) out.push(`${i + 1}번 항목의 이름과 기준 내용을 모두 적어 주세요.`);
+      const w = badWordIn(it.name + ' ' + it.cond + ' ' + it.note);
+      if (w) out.push(`${i + 1}번 항목에 직무와 무관한 요소(「${w}」)가 있습니다. 성별 · 나이 · 출신 같은 요소는 기준에 쓰지 않습니다.`);
+    });
+    const c = Number(job.count);
+    if (!Number.isInteger(c) || c < 1 || c > job.items.length) out.push(`충족 기준 개수는 1 이상 ${job.items.length} 이하의 숫자여야 합니다.`);
+    const names = job.items.map(i => i.name.trim()).filter(Boolean);
+    if (new Set(names).size !== names.length) out.push('항목 이름이 겹칩니다. 항목마다 다른 이름을 쓰세요.');
+    return out;
+  }
+
+  function renderJobs() {
+    const list = $('jobList'); list.textContent = '';
+    jobs.forEach(j => {
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'jobbtn' + (j.id === selected ? ' on' : '');
+      const n = document.createElement('span'); n.textContent = j.name;
+      const s = document.createElement('span'); s.className = 'badge ' + (j.status === '확정' ? 'b-ok' : 'b-part'); s.textContent = j.status;
+      b.appendChild(n); b.appendChild(s);
+      b.onclick = () => { selected = j.id; renderJobs(); };
+      list.appendChild(b);
+    });
+    renderEditor();
+    renderJobFilter();
+  }
+
+  function renderEditor() {
+    const job = cur();
+    $('emptyEditor').classList.toggle('hidden', !!job);
+    $('editorBody').classList.toggle('hidden', !job);
+    if (!job) return;
+    const locked = job.status === '확정';
+    $('jobTitle').textContent = job.name;
+    const st = $('jobStatus'); st.textContent = job.status; st.className = 'badge ' + (locked ? 'b-ok' : 'b-part');
+    const nc = $('needCount'); nc.value = job.count; nc.disabled = locked;
+    $('needHint').textContent = `항목 ${job.items.length}개 중 ${job.count || '○'}개 이상 충족하면 「기준 충족」`;
+    $('addItem').disabled = locked;
+    $('confirmBtn').classList.toggle('hidden', locked);
+    $('reopenBtn').classList.toggle('hidden', !locked);
+
+    const t = $('itemTbl'); t.textContent = '';
+    const hr = t.createTHead().insertRow();
+    ['번호', '항목 이름', '기준 내용', '비고 (결과에 남길 근거)', ''].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
+    const tb = t.createTBody();
+    job.items.forEach((it, i) => {
+      const tr = tb.insertRow();
+      tr.insertCell().textContent = i + 1;
+      [['name', '예: 경력'], ['cond', '예: 5년 이상'], ['note', '예: 해당 경력 문장 한 줄']].forEach(([k, ph]) => {
+        const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = ph; inp.value = it[k]; inp.disabled = locked; inp.maxLength = 120;
+        inp.oninput = () => { it[k] = inp.value; saveJobs(); refreshIssues(); };
+        tr.insertCell().appendChild(inp);
+      });
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'plain'; del.textContent = '삭제'; del.disabled = locked || job.items.length <= 1;
+      del.onclick = () => { job.items.splice(i, 1); saveJobs(); renderEditor(); };
+      tr.insertCell().appendChild(del);
+    });
+    refreshIssues(true);
+  }
+
+  let showIssues = false;
+  function refreshIssues(reset) {
+    const job = cur(); if (!job) return;
+    if (reset) showIssues = false;
+    const ul = $('issues'); ul.textContent = '';
+    const list = showIssues ? issuesOf(job) : [];
+    list.forEach(m => { const li = document.createElement('li'); li.textContent = m; ul.appendChild(li); });
+    ul.classList.toggle('hidden', !list.length);
+    $('needHint').textContent = `항목 ${job.items.length}개 중 ${job.count || '○'}개 이상 충족하면 「기준 충족」`;
+  }
+
+  function confirmJob() {
+    const job = cur(); if (!job) return;
+    showIssues = true;
+    const issues = issuesOf(job);
+    if (issues.length) { refreshIssues(); return; }
+    job.items.forEach(it => { it.name = it.name.trim(); it.cond = it.cond.trim(); it.note = it.note.trim(); });
+    job.status = '확정'; showIssues = false;
+    saveJobs(); renderJobs();
+  }
+
+  function reopenJob() { const job = cur(); if (!job) return; job.status = '초안'; saveJobs(); renderJobs(); }
+
+  function deleteJob() {
+    const job = cur(); if (!job) return;
+    if (!confirm(`「${job.name}」 직무와 기준을 삭제할까요? 되돌릴 수 없습니다.`)) return;
+    jobs = jobs.filter(j => j.id !== job.id); selected = jobs[0] ? jobs[0].id : null;
+    saveJobs(); renderJobs();
+  }
+
+  const cell = (s) => String(s).replace(/\|/g, '/').replace(/\s*\n\s*/g, ' ').trim();
+  function toMd(job) {
+    const lines = ['# 평가 기준 파일', '', `- 상태: ${job.status}`, `- 직무 이름: ${cell(job.name)}`, `- 충족 기준 개수: ${job.count || '[입력]'}`, '',
+      '| 번호 | 항목 이름 | 기준 내용 | 비고 |', '|---|---|---|---|'];
+    job.items.forEach((it, i) => lines.push(`| ${i + 1} | ${cell(it.name) || '[항목 이름]'} | ${cell(it.cond) || '[기준 내용]'} | ${cell(it.note)} |`));
+    return lines.join('\n') + '\n';
+  }
+
+  function download(name, text, type) {
+    const blob = new Blob([text], { type: type + ';charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  const safeName = (s) => s.replace(/[\\/:*?"<>|]/g, '_');
+
+  function exportMd() {
+    const job = cur(); if (!job) return;
+    if (job.status !== '확정' && !confirm('아직 「초안」입니다. 서류-정리는 「확정」인 파일만 읽습니다. 그래도 내려받을까요?')) return;
+    download(safeName(job.name) + '_평가기준.md', toMd(job), 'text/markdown');
+  }
+
+  function importAll(file) {
+    if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const data = JSON.parse(String(rd.result));
+        if (!data || !Array.isArray(data.jobs)) throw new Error('형식이 맞지 않습니다.');
+        let added = 0, skipped = 0;
+        data.jobs.forEach(j => {
+          if (!j || typeof j.name !== 'string' || !Array.isArray(j.items)) { skipped++; return; }
+          if (jobs.some(x => x.name === j.name)) { skipped++; return; }
+          jobs.push({ id: uid(), name: j.name.slice(0, 40), count: Number.isInteger(j.count) ? j.count : '', status: j.status === '확정' ? '확정' : '초안',
+            items: j.items.slice(0, 30).map(i => ({ name: String(i.name || '').slice(0, 120), cond: String(i.cond || '').slice(0, 120), note: String(i.note || '').slice(0, 120) })) });
+          added++;
+        });
+        if (!selected && jobs[0]) selected = jobs[0].id;
+        saveJobs(); renderJobs();
+        jobErr(`불러왔습니다: 추가 ${added}개, 건너뜀 ${skipped}개 (같은 이름은 건너뜁니다).`);
+      } catch (e) { jobErr('불러오지 못했습니다. ' + e.message); }
+    };
+    rd.readAsText(file, 'utf-8');
+  }
+
+  $('addJob').onclick = addJob;
+  $('newJob').onkeydown = (e) => { if (e.key === 'Enter') addJob(); };
+  $('addItem').onclick = () => { const j = cur(); if (!j || j.items.length >= 30) return; j.items.push({ name: '', cond: '', note: '' }); saveJobs(); renderEditor(); };
+  $('needCount').oninput = (e) => { const j = cur(); if (!j) return; j.count = e.target.value === '' ? '' : Number(e.target.value); saveJobs(); refreshIssues(); };
+  $('confirmBtn').onclick = confirmJob;
+  $('reopenBtn').onclick = reopenJob;
+  $('deleteJob').onclick = deleteJob;
+  $('exportMd').onclick = exportMd;
+  $('exportAll').onclick = () => download('직무_기준_전체.json', JSON.stringify({ version: 1, jobs: jobs.map(({ id, ...r }) => r) }, null, 2), 'application/json');
+  $('importAll').onchange = (e) => { importAll(e.target.files[0]); e.target.value = ''; };
+
+  // ===== 탭 =====
+  function showTab(name) {
+    $('paneJobs').classList.toggle('hidden', name !== 'jobs');
+    $('paneView').classList.toggle('hidden', name !== 'view');
+    $('tabJobs').classList.toggle('on', name === 'jobs');
+    $('tabView').classList.toggle('on', name === 'view');
+    if (name === 'view') renderJobFilter();
+  }
+  $('tabJobs').onclick = () => showTab('jobs');
+  $('tabView').onclick = () => showTab('view');
+
+  // ===== 결과표 보기 (기능 6) =====
   let model = null; // { items:[판정 항목 이름], rows:[...] }
+  let jobFilter = ''; // '' = 전체
   const choices = {}; // 지원자 키 -> { pass, interview } (화면 안에서만)
 
   function parseCSV(text) {
     text = text.replace(/^﻿/, '');
-    const rows = []; let row = [], cell = '', q = false;
+    const rows = []; let row = [], c1 = '', q = false;
     for (let i = 0; i < text.length; i++) {
       const c = text[i];
       if (q) {
-        if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
-        else cell += c;
+        if (c === '"') { if (text[i + 1] === '"') { c1 += '"'; i++; } else q = false; }
+        else c1 += c;
       } else if (c === '"') q = true;
-      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === ',') { row.push(c1); c1 = ''; }
       else if (c === '\n' || c === '\r') {
         if (c === '\r' && text[i + 1] === '\n') i++;
-        row.push(cell); rows.push(row); row = []; cell = '';
-      } else cell += c;
+        row.push(c1); rows.push(row); row = []; c1 = '';
+      } else c1 += c;
     }
-    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    if (c1 !== '' || row.length) { row.push(c1); rows.push(row); }
     return rows.filter(r => r.some(x => x.trim() !== ''));
   }
 
@@ -121,16 +398,12 @@
     const out = rows.slice(1).map((r, n) => {
       const cnt = get(r, '기준 충족 개수');
       const m = cnt.match(/^(\d+)\s*\/\s*(\d+)/);
-      const failText = get(r, '읽기 실패 여부');
       return {
         key: get(r, '지원자 ID') + '#' + n,
-        id: get(r, '지원자 ID'),
-        job: get(r, '직무'),
+        id: get(r, '지원자 ID'), job: get(r, '직무'),
         judge: items.map(it => ({ v: get(r, it + ' 판정'), why: get(r, it + ' 근거') })),
         count: m ? +m[1] : null, total: m ? +m[2] : null, countText: cnt,
-        met: get(r, '기준 충족 여부'),
-        link: get(r, '링크 확인 상태'),
-        fail: failText,
+        met: get(r, '기준 충족 여부'), link: get(r, '링크 확인 상태'), fail: get(r, '읽기 실패 여부'),
         pass0: get(r, '서류 합격/불합격'), int0: get(r, '면접 대상'),
       };
     });
@@ -144,25 +417,63 @@
     return s;
   }
 
-  function select(opts, cur, onchange) {
+  function select(opts, cur0, onchange) {
     const s = document.createElement('select');
     opts.forEach(o => { const op = document.createElement('option'); op.value = o; op.textContent = o || '(비어 있음)'; s.appendChild(op); });
-    s.value = cur; s.onchange = () => onchange(s.value);
+    s.value = cur0; s.onchange = () => onchange(s.value);
     return s;
+  }
+
+  function renderJobFilter() {
+    const sel = $('jobFilter'); if (!sel) return;
+    const names = new Set();
+    if (model) model.rows.forEach(r => { if (r.job) names.add(r.job); });
+    jobs.forEach(j => names.add(j.name));
+    const keep = jobFilter;
+    sel.textContent = '';
+    const all = document.createElement('option'); all.value = ''; all.textContent = '전체 직무'; sel.appendChild(all);
+    [...names].forEach(n => {
+      const o = document.createElement('option'); o.value = n;
+      const reg = jobs.find(j => j.name === n);
+      o.textContent = n + (reg ? '' : ' (기준 미등록)'); sel.appendChild(o);
+    });
+    sel.value = names.has(keep) ? keep : ''; jobFilter = sel.value;
+    if (model) render();
+  }
+
+  function renderReq() {
+    const box = $('reqBox'); box.textContent = '';
+    if (!jobFilter) { box.classList.add('hidden'); return; }
+    box.classList.remove('hidden');
+    const job = jobs.find(j => j.name === jobFilter);
+    const h = document.createElement('b');
+    if (!job) {
+      h.textContent = `「${jobFilter}」의 서류 합격 기준이 등록되어 있지 않습니다. 「직무 · 서류 합격 기준」 탭에서 등록하세요.`;
+      box.appendChild(h); return;
+    }
+    h.textContent = `「${job.name}」 서류 합격 기준 · ${job.status}`;
+    box.appendChild(h);
+    const p = document.createElement('div');
+    p.textContent = `항목 ${job.items.length}개 중 ${job.count || '○'}개 이상 충족하면 「기준 충족」 (기준 충족 여부는 결과표 값을 그대로 보여 줍니다)`;
+    box.appendChild(p);
+    const ul = document.createElement('ul');
+    job.items.forEach(it => { const li = document.createElement('li'); li.textContent = `${it.name || '(이름 없음)'} — ${it.cond || '(기준 없음)'}`; ul.appendChild(li); });
+    box.appendChild(ul);
+    if (job.status !== '확정') { const w = document.createElement('div'); w.className = 'muted'; w.textContent = '아직 초안입니다. 확정된 기준으로 평가했는지 확인하세요.'; box.appendChild(w); }
   }
 
   function render() {
     if (!model) return;
     const rankOn = $('rankOn').checked;
     $('rankNote').classList.toggle('hidden', !rankOn);
-    let rows = model.rows.slice();
+    renderReq();
+    let rows = model.rows.filter(r => !jobFilter || r.job === jobFilter);
     const ranks = new Map();
     if (rankOn) {
       const ok = rows.filter(r => !r.fail && r.count !== null).sort((a, b) => b.count - a.count);
       ok.forEach((r, i) => ranks.set(r.key, i > 0 && ok[i - 1].count === r.count ? ranks.get(ok[i - 1].key) : i + 1));
-      rows.sort((a, b) => (ranks.has(a.key) ? 0 : 1) - (ranks.has(b.key) ? 0 : 1) || (ranks.get(a.key) || 0) - (ranks.get(b.key) || 0));
+      rows = rows.slice().sort((a, b) => (ranks.has(a.key) ? 0 : 1) - (ranks.has(b.key) ? 0 : 1) || (ranks.get(a.key) || 0) - (ranks.get(b.key) || 0));
     }
-    // 요약
     const n = rows.length, f = rows.filter(r => r.fail).length;
     const lk = rows.filter(r => r.link === '링크 확인 못 함').length;
     const met = rows.filter(r => !r.fail && r.met === '충족').length;
@@ -172,7 +483,6 @@
       const b = document.createElement('b'); b.textContent = v + '명';
       d.appendChild(b); d.appendChild(document.createTextNode(k)); st.appendChild(d);
     });
-    // 표
     const t = $('tbl'); t.textContent = '';
     const hr = t.createTHead().insertRow();
     const heads = [].concat(rankOn ? ['순위'] : [], ['지원자 ID', '직무'], model.items, ['충족 개수', '기준 충족 여부', '링크', '서류 합격/불합격', '면접 대상']);
@@ -204,7 +514,8 @@
       Object.keys(choices).forEach(k => delete choices[k]);
       showError('');
       $('result').classList.remove('hidden');
-      render();
+      jobFilter = '';
+      renderJobFilter();
     } catch (e) {
       model = null; $('result').classList.add('hidden'); showError(e.message);
     }
@@ -220,6 +531,7 @@
 
   $('file').onchange = (e) => readFile(e.target.files[0]);
   $('rankOn').onchange = render;
+  $('jobFilter').onchange = (e) => { jobFilter = e.target.value; render(); };
   $('sample').onclick = async () => {
     try { const r = await fetch('sample.csv'); if (!r.ok) throw 0; loadCsvText(await r.text()); }
     catch { showError('가상 예시를 불러오지 못했습니다.'); }
@@ -228,6 +540,9 @@
   ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => readFile(e.dataTransfer.files[0]));
+
+  // 시작
+  loadJobs(); if (jobs[0]) selected = jobs[0].id; saveJobs(); renderJobs();
 </script>
 </body>
 </html>
