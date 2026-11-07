@@ -4,3 +4,8 @@
 - Vercel 프로젝트의 Root Directory 는 `web` 으로 한다.
 - 기능 6을 만들 때는 이 폴더 안에서 `index.html` 을 바꾸거나 파일을 더한다. 다른 폴더(스킬 · 가상데이터)는 건드리지 않는다.
 - 환경 변수 · 키는 없다. 가상 데이터만 쓴다.
+
+## 배포
+
+- GitHub 저장소 `build3` 의 `main` 에 올리면 Vercel 이 `web/` 을 자동으로 배포한다 (Root Directory = web).
+- 배포 주소: https://hr-resume-review-five.vercel.app
